@@ -1,7 +1,8 @@
 import { fail, ok, withUser } from "@/lib/api";
 import { getCoach } from "@/lib/ai";
 import { prisma } from "@/lib/db";
-import { LIMITS, assessmentsToday } from "@/lib/limits";
+import { LIMITS } from "@/lib/limits";
+import { assessmentsToday } from "@/lib/limits-db";
 import { serializeOptions } from "@/lib/questions";
 
 /**

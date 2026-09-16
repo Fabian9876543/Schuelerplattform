@@ -17,11 +17,25 @@ für die Tutorensuche.
 
 ```bash
 npm install
-cp .env.example .env
-npx prisma migrate dev     # legt die SQLite-Datenbank an
+cp .env.example .env       # DATABASE_URL eintragen, siehe unten
+npx prisma migrate dev     # legt die Tabellen an
 npm run seed               # Beispieldaten
 npm run dev                # http://localhost:3000
 ```
+
+### Woher die Datenbank kommt
+
+Die App braucht **PostgreSQL**. Zwei Wege:
+
+**Gehostet** (empfohlen, funktioniert lokal und im Betrieb): Bei
+[Neon](https://neon.tech) oder [Supabase](https://supabase.com) eine kostenlose
+Datenbank anlegen, die angezeigte Verbindungszeichenfolge in die `.env` als
+`DATABASE_URL` eintragen. Dieselbe Zeichenfolge lässt sich später beim Hosting
+hinterlegen.
+
+**Lokal auf dem Mac**: [Postgres.app](https://postgresapp.com) installieren,
+starten, dann `createdb schuelerplattform`. Die `DATABASE_URL` lautet dann
+`postgresql://<dein-benutzername>@localhost:5432/schuelerplattform`.
 
 Alle Beispielkonten haben das Passwort `geheim123`:
 
@@ -181,6 +195,30 @@ ist. **Wann** gelernt wird, rechnet `lib/planning.ts` deterministisch aus:
 Dadurch kann kein Termin hinter dem Klausurdatum landen, und die Verteilung ist
 testbar statt vom Modell abhängig.
 
+## Online stellen
+
+Die App läuft auf jedem Hosting, das Node ausführt; mit Next.js ist
+[Vercel](https://vercel.com) am direktesten.
+
+1. **Datenbank**: bei Neon oder Supabase eine Postgres-Datenbank anlegen und die
+   Verbindungszeichenfolge kopieren.
+2. **Projekt verbinden**: das GitHub-Repository bei Vercel importieren.
+3. **Umgebungsvariablen** setzen:
+   - `DATABASE_URL` – die Zeichenfolge aus Schritt 1
+   - `ANTHROPIC_API_KEY` – ohne ihn läuft nur die regelbasierte Auswertung
+4. **Tabellen anlegen**: einmalig `npx prisma migrate deploy` gegen die
+   Produktionsdatenbank ausführen (oder `npm run db:deploy` mit gesetzter
+   `DATABASE_URL`). In Produktion **nicht** `migrate dev` benutzen – das ist für
+   die Entwicklung gedacht und kann Daten verwerfen.
+
+Der `postinstall`-Schritt erzeugt den Prisma-Client beim Deployment automatisch.
+Ohne ihn schlägt der Build fehl, weil Hosting-Plattformen `node_modules`
+zwischenspeichern und der generierte Client darin liegt.
+
+**Vor dem ersten echten Einsatz** noch bedenken: Die Beispielkonten aus
+`npm run seed` gehören nicht in eine öffentliche Instanz – dort das Seeding
+weglassen oder die Konten nach dem Anlegen entfernen.
+
 ## Grenzen und Schutz
 
 `lib/limits.ts` hält alle Grenzwerte an einer Stelle:
@@ -233,16 +271,16 @@ Die Tests brauchen keinen API-Schlüssel.
 ## Hinweise zur Technik
 
 - **Prisma 7**: Die Verbindungs-URL steht in `prisma.config.ts`, nicht im
-  Schema, und der Client bekommt einen Treiber-Adapter
-  (`@prisma/adapter-better-sqlite3`). `prisma` und `@prisma/client` sind bewusst
-  auf `7.10.0` gepinnt, weil der `latest`-Tag der CLI derzeit auf einen
-  Release Candidate zeigt.
-- **SQLite**: Prisma unterstützt hier weder `enum`-Typen noch Array-Felder.
-  Aufzählungen liegen als String vor, die erlaubten Werte stehen in
-  `lib/constants.ts`. Listen werden als JSON-String abgelegt und nur über einen
-  Zod-Parser gelesen.
-- **Umstieg auf Postgres**: `provider` in `prisma/schema.prisma` ändern, den
-  Adapter in `lib/db.ts` tauschen, neu migrieren.
+  Schema, und der Client bekommt einen Treiber-Adapter (`@prisma/adapter-pg`).
+  `prisma` und `@prisma/client` sind bewusst auf `7.10.0` gepinnt, weil der
+  `latest`-Tag der CLI derzeit auf einen Release Candidate zeigt.
+- **Nach einer Änderung am Schema** muss `npx prisma generate` laufen, sonst
+  kennt der Client das neue Feld nicht – auch dann, wenn die Migration schon
+  durch ist.
+- **Aufzählungen** liegen als String-Spalte vor, die erlaubten Werte stehen in
+  `lib/constants.ts` und werden per Zod geprüft. Das stammt aus der SQLite-Zeit;
+  Postgres könnte echte `enum`-Typen, der Umstieg wäre eine eigene Änderung.
+  Listen liegen als JSON-String und werden nur über einen Zod-Parser gelesen.
 
 ## Was als Nächstes sinnvoll wäre
 

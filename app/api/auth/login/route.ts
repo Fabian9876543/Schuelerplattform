@@ -3,13 +3,12 @@ import { z } from "zod";
 import { fail, fromZodError, ok } from "@/lib/api";
 import { createSession, verifyPassword } from "@/lib/auth";
 import { prisma } from "@/lib/db";
+import { LIMITS, minutesUntilUnlocked } from "@/lib/limits";
 import {
-  LIMITS,
   clearLoginAttempts,
-  minutesUntilUnlocked,
   recentLoginAttempts,
   recordLoginAttempt,
-} from "@/lib/limits";
+} from "@/lib/limits-db";
 
 const schema = z.object({
   email: z.string().trim().toLowerCase().email("Bitte gib eine gueltige E-Mail-Adresse an."),

@@ -1,10 +1,11 @@
 // Schuelerplattform - Datenmodell
 //
-// Hinweis zu SQLite: Prisma unterstuetzt bei SQLite weder enum-Typen noch
-// Array-Felder. Alle Aufzaehlungen liegen deshalb als String-Spalte vor; die
-// erlaubten Werte stehen zentral in lib/constants.ts und werden dort per Zod
-// validiert. Listen (z.B. Antwortoptionen) werden als JSON-String abgelegt und
-// beim Lesen ueber einen Zod-Parser gefuehrt, nie mit blankem JSON.parse.
+// Aufzaehlungen liegen als String-Spalte vor; die erlaubten Werte stehen
+// zentral in lib/constants.ts und werden dort per Zod validiert. Das stammt aus
+// der SQLite-Zeit - Postgres koennte echte enum-Typen, der Umstieg darauf waere
+// eine eigene Aenderung mit eigener Migration.
+// Listen (z.B. Antwortoptionen) liegen als JSON-String und werden beim Lesen
+// ueber einen Zod-Parser gefuehrt, nie mit blankem JSON.parse.
 
 generator client {
   provider = "prisma-client"
@@ -12,7 +13,7 @@ generator client {
 }
 
 datasource db {
-  provider = "sqlite"
+  provider = "postgresql"
 }
 
 model User {

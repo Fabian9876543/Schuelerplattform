@@ -3,7 +3,8 @@ import { z } from "zod";
 import { fail, fromZodError, ok, withUser } from "@/lib/api";
 import { normalizeTopic, subjectSchema } from "@/lib/constants";
 import { prisma } from "@/lib/db";
-import { LIMITS, goalsOfUser } from "@/lib/limits";
+import { LIMITS } from "@/lib/limits";
+import { goalsOfUser } from "@/lib/limits-db";
 import { atNoon } from "@/lib/planning";
 
 const schema = z.object({
