@@ -35,7 +35,11 @@ export function LoginForm() {
   }
 
   return (
-    <form onSubmit={onSubmit} className="space-y-4">
+    <form
+      method="post"
+      onSubmit={onSubmit}
+      className="space-y-4"
+    >
       {error ? <ErrorNote>{error}</ErrorNote> : null}
 
       <Field label="E-Mail">

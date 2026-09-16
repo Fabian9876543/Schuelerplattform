@@ -32,6 +32,50 @@ Alle Beispielkonten haben das Passwort `geheim123`:
 | `mira@schule.de` | gibt Nachhilfe in Mathe bis Klasse 13 |
 | `paul@schule.de` | hat eine Anfrage an Jonas gestellt |
 
+## Auf dem Handy ausprobieren
+
+Die Oberfläche ist für kleine Displays ausgelegt – geprüft auf 390 px Breite,
+ohne horizontales Scrollen.
+
+Um die App vom Handy aus zu öffnen, muss sie auf deinem Rechner laufen und das
+Handy im **selben WLAN** sein:
+
+1. `npm run dev` starten. Next.js gibt zwei Adressen aus:
+
+   ```
+   - Local:         http://localhost:3000
+   - Network:       http://192.168.178.24:3000   <- diese
+   ```
+
+2. Die `Network:`-Adresse im Handy-Browser öffnen.
+
+Zwei Dinge, an denen es üblicherweise scheitert:
+
+- **Firewall**: Windows und macOS fragen beim ersten Start, ob Node.js
+  eingehende Verbindungen annehmen darf. Wird das abgelehnt, lädt die Seite auf
+  dem Handy gar nicht. Unter Windows lässt sich das unter „Windows Defender
+  Firewall → App durch die Firewall kommunizieren lassen" nachträglich ändern.
+- **Gäste-WLAN**: Viele Router und fast alle Schul- und Uni-Netze schotten
+  Geräte voneinander ab (Client-Isolation). Dann ist dein Rechner vom Handy aus
+  grundsätzlich nicht erreichbar – das lässt sich nur im Router ändern.
+
+### Wenn die Seite lädt, aber nichts funktioniert
+
+Next.js blockiert im Entwicklungsmodus standardmäßig Zugriffe von anderen
+Adressen als `localhost`. Die Seite wird dann zwar angezeigt, aber das
+JavaScript wird nicht aktiviert – Anmelden und Abhaken tun nichts.
+
+`next.config.ts` erlaubt deshalb die üblichen Heimnetz-Bereiche
+(`192.168.x.x`, `10.x.x.x`, `172.16.x.x`). Fängt deine `Network:`-Adresse mit
+etwas anderem an, trag sie in die `.env` ein:
+
+```bash
+DEV_ORIGIN="172.20.10.5"
+```
+
+Das betrifft nur den Entwicklungsmodus; ein Produktionsbuild hat diese
+Einschränkung nicht.
+
 ## KI-Auswertung
 
 Die Auswertung läuft über die Claude API (Modell `claude-opus-5`). Das
