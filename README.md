@@ -133,6 +133,23 @@ Auswertung den Antworten folgt oder nur das Bauchgefühl wiederholt.
 Das ist auch der schnellste Weg, um nach einer Änderung an den Prompts in
 `lib/ai/claude-coach.ts` zu sehen, ob sie etwas gebracht hat.
 
+### Gemessene Werte
+
+Ein vollständiger Durchlauf mit `claude-opus-5` (Stand: erster echter Lauf,
+Mathematik Klasse 11, drei Teilthemen, acht Fragen):
+
+| Schritt | Dauer | Kosten |
+|---|---|---|
+| Fragen erzeugen | ~40 s | ~0,09 USD |
+| Auswerten | ~29 s | ~0,07 USD |
+| **Summe** | **~70 s** | **~0,16 USD** |
+
+Die Wartezeiten stehen so auch in der Oberfläche, damit niemand denkt, die
+Seite hänge. Wer sie drücken will, kann in `lib/ai/claude-coach.ts` bei den
+Aufrufen `output_config: { effort: "medium" }` ergänzen – das senkt Dauer und
+Kosten, kann aber die Qualität der Fragen kosten. Vorher und nachher mit
+`npm run ki-probe` vergleichen, nicht auf Verdacht ändern.
+
 ## Wie der Lernplan entsteht
 
 Die KI liefert nur, **was** gelernt werden muss und wie gravierend die Lücke

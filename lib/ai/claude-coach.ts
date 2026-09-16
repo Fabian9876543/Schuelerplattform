@@ -136,7 +136,12 @@ export class ClaudeCoach implements LearningCoach {
         );
       } else {
         if (question.expectedPoints) lines.push(`Erwartet wird: ${question.expectedPoints}`);
-        lines.push(`Antwort: ${question.answerText?.trim() || "(keine Antwort)"}`);
+        const text = question.answerText?.trim();
+        lines.push(
+          text
+            ? `Antwort (abgegeben): ${text}`
+            : "Antwort: KEINE - das Feld wurde leer gelassen",
+        );
       }
       return lines.join("\n");
     });
@@ -174,6 +179,7 @@ export class ClaudeCoach implements LearningCoach {
             "",
             "Deine Aufgabe:",
             "- Bewerte jede Frage einzeln (questionFeedback, questionIndex ist die Nummer oben, score von 0 bis 100).",
+            "- Unterscheide dabei genau zwischen einer leeren und einer schwachen Antwort: Nur wo ausdruecklich KEINE Antwort steht, darfst du von einer fehlenden Antwort sprechen. Wurde etwas abgegeben, das inhaltlich nicht traegt, benenne das als unzureichende Antwort und greife auf, was die Person geschrieben hat - sonst fuehlt sie sich zu Unrecht uebergangen.",
             "- Gib eine Gesamtrueckmeldung (summary) von 2 bis 4 Saetzen und einen overallScore von 0 bis 100.",
             "- Liste unter deficits nur die Teilthemen auf, bei denen wirklich eine Luecke besteht.",
             "- Beziehe dabei die Selbsteinschaetzung mit ein: Wer sich unsicher fuehlt, aber richtig geantwortet hat, braucht eher Bestaetigung als Wiederholung.",

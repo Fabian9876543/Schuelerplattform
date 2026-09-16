@@ -173,7 +173,11 @@ export function AssessmentForm({
         <Button type="submit" disabled={pending}>
           {pending ? "Wird ausgewertet ..." : "Auswerten und Lernplan erstellen"}
         </Button>
-        {pending ? <span className="text-sm text-slate-500">Das dauert einen Moment.</span> : null}
+        {pending ? (
+          <span className="text-sm text-slate-500">
+            Deine Antworten werden ausgewertet - das dauert etwa eine halbe Minute.
+          </span>
+        ) : null}
       </div>
     </form>
   );

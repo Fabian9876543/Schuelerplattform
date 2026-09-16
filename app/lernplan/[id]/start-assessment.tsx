@@ -34,7 +34,12 @@ export function StartAssessment({ goalId }: { goalId: string }) {
         {pending ? "Fragen werden erstellt ..." : "Selbsttest starten"}
       </Button>
       {pending ? (
-        <p className="text-xs text-slate-500">Das kann einen Moment dauern.</p>
+        // Gemessen: die Fragengenerierung braucht rund 40 Sekunden. Eine vage
+        // Formulierung laesst die Seite kaputt wirken, bevor sie fertig ist.
+        <p className="text-xs text-slate-500">
+          Die Fragen werden eigens fuer deine Themen erstellt - das dauert etwa
+          eine halbe Minute. Lass die Seite offen.
+        </p>
       ) : null}
     </div>
   );
