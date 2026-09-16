@@ -104,6 +104,25 @@ Der Unterschied:
 Die regelbasierte Variante erfindet bewusst **keine** Multiple-Choice-Fragen:
 Ohne Fachwissen wären die als richtig markierten Lösungen geraten.
 
+### Die Auswertung überprüfen
+
+```bash
+npm run ki-probe
+```
+
+Lässt einen vollständigen Selbsttest durchlaufen und zeigt die erzeugten
+Fragen samt markierter Lösungen, die Auswertung und die erkannten Lücken.
+Ohne API-Schlüssel läuft nur die regelbasierte Variante, mit Schlüssel beide
+nebeneinander – inklusive Tokenverbrauch, Dauer und Kosten je Aufruf.
+
+Die Antworten werden dabei bewusst gegenläufig zur Selbsteinschätzung
+simuliert: Ein Thema wird richtig beantwortet, aber als unsicher eingeschätzt,
+ein anderes falsch beantwortet, aber als sicher. So zeigt sich, ob die
+Auswertung den Antworten folgt oder nur das Bauchgefühl wiederholt.
+
+Das ist auch der schnellste Weg, um nach einer Änderung an den Prompts in
+`lib/ai/claude-coach.ts` zu sehen, ob sie etwas gebracht hat.
+
 ## Wie der Lernplan entsteht
 
 Die KI liefert nur, **was** gelernt werden muss und wie gravierend die Lücke

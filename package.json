@@ -11,7 +11,8 @@
     "seed": "tsx prisma/seed.ts",
     "test": "vitest run",
     "db:push": "prisma db push",
-    "db:migrate": "prisma migrate dev"
+    "db:migrate": "prisma migrate dev",
+    "ki-probe": "tsx scripts/ki-probe.ts"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "0.126.0",

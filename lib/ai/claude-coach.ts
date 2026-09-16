@@ -21,15 +21,36 @@ const MAX_TOKENS = 16000;
  * Freitext geparst. Die Themen gehen als nummerierte Liste hinein und kommen
  * als Index zurueck, damit das Modell keine Datenbank-IDs abschreiben muss.
  */
+/** Verbrauch eines Aufrufs - fuer die Kostenkontrolle in scripts/ki-probe.ts. */
+export interface CoachUsage {
+  step: "quiz" | "evaluation";
+  inputTokens: number;
+  outputTokens: number;
+  durationMs: number;
+}
+
 export class ClaudeCoach implements LearningCoach {
   private client: Anthropic;
+
+  /** Verbrauch der bisherigen Aufrufe dieser Instanz. */
+  readonly usage: CoachUsage[] = [];
 
   constructor(apiKey?: string) {
     this.client = apiKey ? new Anthropic({ apiKey }) : new Anthropic();
   }
 
+  private track(step: CoachUsage["step"], usage: Anthropic.Usage, startedAt: number): void {
+    this.usage.push({
+      step,
+      inputTokens: usage.input_tokens,
+      outputTokens: usage.output_tokens,
+      durationMs: Date.now() - startedAt,
+    });
+  }
+
   async generateQuiz(request: QuizRequest): Promise<CoachQuiz> {
     const topicList = request.topics.map((topic, index) => `${index}: ${topic.name}`).join("\n");
+    const startedAt = Date.now();
 
     const response = await this.client.messages.parse({
       model: MODEL,
@@ -60,6 +81,8 @@ export class ClaudeCoach implements LearningCoach {
       ],
       output_config: { format: zodOutputFormat(quizSchema) },
     });
+
+    this.track("quiz", response.usage, startedAt);
 
     const parsed = response.parsed_output;
     if (!parsed) {
@@ -118,6 +141,8 @@ export class ClaudeCoach implements LearningCoach {
       return lines.join("\n");
     });
 
+    const startedAt = Date.now();
+
     const ratingLines = request.topics.map((topic, index) => {
       const confidence = confidenceByTopic.get(topic.id);
       return `${index}: ${topic.name} - Selbsteinschaetzung ${confidence ?? "keine"} von 5`;
@@ -160,6 +185,8 @@ export class ClaudeCoach implements LearningCoach {
       ],
       output_config: { format: zodOutputFormat(evaluationResultSchema) },
     });
+
+    this.track("evaluation", response.usage, startedAt);
 
     const parsed = response.parsed_output;
     if (!parsed) {
