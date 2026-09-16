@@ -1,5 +1,6 @@
 import Anthropic from "@anthropic-ai/sdk";
 
+import { findApiKey, apiKeySource } from "@/lib/ai/api-key";
 import { ClaudeCoach } from "@/lib/ai/claude-coach";
 import { RuleCoach } from "@/lib/ai/rule-coach";
 import type {
@@ -14,13 +15,15 @@ export * from "@/lib/ai/types";
 export { ClaudeCoach } from "@/lib/ai/claude-coach";
 export { RuleCoach } from "@/lib/ai/rule-coach";
 
+export { findApiKey, apiKeySource } from "@/lib/ai/api-key";
+
 export function hasApiKey(): boolean {
-  return Boolean(process.env.ANTHROPIC_API_KEY?.trim());
+  return Boolean(findApiKey());
 }
 
 function describeError(error: unknown): string {
   if (error instanceof Anthropic.AuthenticationError) {
-    return "Der hinterlegte ANTHROPIC_API_KEY wurde abgelehnt.";
+    return `Der hinterlegte Schluessel (${apiKeySource()}) wurde abgelehnt.`;
   }
   if (error instanceof Anthropic.RateLimitError) {
     return "Das API-Kontingent ist erschoepft.";
@@ -46,7 +49,8 @@ class FallbackCoach implements LearningCoach {
   private rule = new RuleCoach();
 
   private claude(): ClaudeCoach | null {
-    return hasApiKey() ? new ClaudeCoach(process.env.ANTHROPIC_API_KEY) : null;
+    const key = findApiKey();
+    return key ? new ClaudeCoach(key) : null;
   }
 
   async generateQuiz(request: QuizRequest): Promise<CoachQuiz> {

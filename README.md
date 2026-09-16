@@ -87,11 +87,21 @@ regelbasierte Auswertung, und das Ergebnis wird in der Oberfläche als solches
 gekennzeichnet. Dasselbe passiert, wenn ein API-Aufruf fehlschlägt – wer kurz
 vor einer Klausur sitzt, soll nicht vor einer Fehlerseite stehen.
 
-Mit Schlüssel:
+Mit Schlüssel – zwei Namen werden akzeptiert:
 
 ```bash
+# lokal am eigenen Rechner
 echo 'ANTHROPIC_API_KEY="sk-ant-..."' >> .env
+
+# in einer Claude-Code-Cloud-Umgebung besser dieser Name:
+echo 'SCHUELERPLATTFORM_ANTHROPIC_KEY="sk-ant-..."' >> .env
 ```
+
+Der zweite Name existiert wegen einer Falle: Claude Code selbst bevorzugt
+`ANTHROPIC_API_KEY` gegenüber der Anmeldung über das Abo. Wer den Schlüssel in
+einer Cloud-Umgebung unter diesem Namen hinterlegt, bezahlt damit auch die
+eigene Claude-Code-Nutzung aus dem API-Guthaben. Unter dem eigenen Namen kann
+das nicht passieren.
 
 Der Unterschied:
 

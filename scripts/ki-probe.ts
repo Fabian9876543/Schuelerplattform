@@ -3,7 +3,7 @@
  *
  *   npm run ki-probe
  *
- * Ohne ANTHROPIC_API_KEY läuft nur die regelbasierte Variante - so lässt sich
+ * Ohne Schlüssel läuft nur die regelbasierte Variante - so lässt sich
  * das Skript auch ohne Schlüssel benutzen. Mit Schlüssel laufen beide und
  * stehen zum Vergleich nebeneinander.
  *
@@ -14,6 +14,7 @@
  */
 import path from "node:path";
 
+import { apiKeySource, findApiKey } from "@/lib/ai/api-key";
 import { ClaudeCoach } from "@/lib/ai/claude-coach";
 import { RuleCoach } from "@/lib/ai/rule-coach";
 import type {
@@ -224,9 +225,10 @@ async function main(): Promise<void> {
     console.log(`  ${t.name}: wird ${s.antwort} beantwortet, Selbsteinschätzung ${s.confidence}/5`);
   });
 
-  const key = process.env.ANTHROPIC_API_KEY?.trim();
+  const key = findApiKey();
 
   if (key) {
+    console.log(`\nSchlüssel gefunden unter ${apiKeySource()}.`);
     const claude = new ClaudeCoach(key);
     try {
       await durchlauf(claude, "MIT CLAUDE");
@@ -250,8 +252,10 @@ async function main(): Promise<void> {
     }
   } else {
     console.log(
-      "\nKein ANTHROPIC_API_KEY hinterlegt - es läuft nur die regelbasierte Variante.\n" +
-        'Für den Vergleich: ANTHROPIC_API_KEY="sk-ant-..." in die .env eintragen.',
+      "\nKein Schlüssel hinterlegt - es läuft nur die regelbasierte Variante.\n" +
+        "Für den Vergleich einen dieser Namen setzen:\n" +
+        '  SCHUELERPLATTFORM_ANTHROPIC_KEY="sk-ant-..."   (empfohlen)\n' +
+        '  ANTHROPIC_API_KEY="sk-ant-..."',
     );
   }
 
