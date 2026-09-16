@@ -1,9 +1,10 @@
 // Schuelerplattform - Datenmodell
 //
-// Aufzaehlungen liegen als String-Spalte vor; die erlaubten Werte stehen
-// zentral in lib/constants.ts und werden dort per Zod validiert. Das stammt aus
-// der SQLite-Zeit - Postgres koennte echte enum-Typen, der Umstieg darauf waere
-// eine eigene Aenderung mit eigener Migration.
+// Status- und Typfelder sind echte enum-Typen: Die Datenbank laesst dadurch
+// keinen ungueltigen Wert zu, und Prisma erzeugt daraus TypeScript-Typen.
+// Das Fach bleibt bewusst eine String-Spalte - die Faecherliste ist
+// Inhalt, kein Code, und soll sich ohne Migration ergaenzen lassen. Die
+// erlaubten Werte stehen in lib/constants.ts und werden per Zod geprueft.
 // Listen (z.B. Antwortoptionen) liegen als JSON-String und werden beim Lesen
 // ueber einen Zod-Parser gefuehrt, nie mit blankem JSON.parse.
 
@@ -14,6 +15,33 @@ generator client {
 
 datasource db {
   provider = "postgresql"
+}
+
+/// Wo ein Selbsttest gerade steht.
+enum AssessmentStatus {
+  draft
+  submitted
+  evaluated
+}
+
+/// Fragetyp im Selbsttest.
+enum QuestionKind {
+  multiple_choice
+  free_text
+}
+
+/// Woher eine Auswertung stammt: von Claude oder regelbasiert.
+enum EvaluationSource {
+  ai
+  rule
+}
+
+/// Stand einer Nachhilfe-Anfrage.
+enum RequestStatus {
+  open
+  accepted
+  declined
+  withdrawn
 }
 
 model User {
@@ -80,8 +108,7 @@ model Topic {
 model Assessment {
   id             String    @id @default(cuid())
   learningGoalId String
-  /// draft | submitted | evaluated
-  status         String    @default("draft")
+  status         AssessmentStatus @default(draft)
   createdAt      DateTime  @default(now())
   submittedAt    DateTime?
 
@@ -97,8 +124,7 @@ model Question {
   id           String @id @default(cuid())
   assessmentId String
   topicId      String?
-  /// multiple_choice | free_text
-  kind         String
+  kind         QuestionKind
   prompt       String
   position     Int
 
@@ -144,8 +170,8 @@ model Evaluation {
   summary      String
   /// 0-100
   overallScore Int
-  /// ai | rule - woher die Auswertung stammt
-  source       String
+  /// woher die Auswertung stammt
+  source       EvaluationSource
   createdAt    DateTime @default(now())
 
   assessment Assessment  @relation(fields: [assessmentId], references: [id], onDelete: Cascade)
@@ -224,8 +250,7 @@ model TutoringRequest {
   deficitId    String?
   topic        String
   message      String
-  /// open | accepted | declined | withdrawn
-  status       String @default("open")
+  status       RequestStatus @default(open)
 
   responseMessage String?
   createdAt       DateTime  @default(now())

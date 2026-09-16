@@ -277,10 +277,16 @@ Die Tests brauchen keinen API-Schlüssel.
 - **Nach einer Änderung am Schema** muss `npx prisma generate` laufen, sonst
   kennt der Client das neue Feld nicht – auch dann, wenn die Migration schon
   durch ist.
-- **Aufzählungen** liegen als String-Spalte vor, die erlaubten Werte stehen in
-  `lib/constants.ts` und werden per Zod geprüft. Das stammt aus der SQLite-Zeit;
-  Postgres könnte echte `enum`-Typen, der Umstieg wäre eine eigene Änderung.
-  Listen liegen als JSON-String und werden nur über einen Zod-Parser gelesen.
+- **Status- und Typfelder** sind echte `enum`-Typen in der Datenbank
+  (`AssessmentStatus`, `QuestionKind`, `EvaluationSource`, `RequestStatus`).
+  Die Datenbank lässt keinen ungültigen Wert zu, Prisma erzeugt daraus die
+  TypeScript-Typen, und `lib/constants.ts` leitet die Zod-Schemas davon ab –
+  eine Quelle statt zwei.
+- **Das Fach bleibt eine String-Spalte.** Die Fächerliste ist Inhalt, kein
+  Code: Spanisch oder Sport zu ergänzen soll keine Migration brauchen. Die
+  erlaubten Werte stehen in `lib/constants.ts`.
+- Listen (Antwortoptionen) liegen als JSON-String und werden nur über einen
+  Zod-Parser gelesen.
 
 ## Was als Nächstes sinnvoll wäre
 

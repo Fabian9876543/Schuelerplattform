@@ -1,5 +1,7 @@
 import { z } from "zod";
 
+import * as PrismaEnums from "@/lib/generated/prisma/enums";
+
 /**
  * Einzige Wahrheitsquelle fuer alle Aufzaehlungswerte.
  *
@@ -28,20 +30,23 @@ export const SUBJECTS = [
 export type Subject = (typeof SUBJECTS)[number];
 export const subjectSchema = z.enum(SUBJECTS);
 
-export const ASSESSMENT_STATUS = ["draft", "submitted", "evaluated"] as const;
-export type AssessmentStatus = (typeof ASSESSMENT_STATUS)[number];
-export const assessmentStatusSchema = z.enum(ASSESSMENT_STATUS);
+/**
+ * Status- und Typwerte kommen aus dem Prisma-Schema, nicht aus einer zweiten
+ * Liste hier: Es gibt genau eine Quelle, und die Datenbank setzt sie selbst
+ * durch. Die Zod-Schemas leiten sich davon ab, damit eine API-Eingabe nie
+ * etwas durchlaesst, das die Datenbank anschliessend ablehnen wuerde.
+ */
+export {
+  AssessmentStatus,
+  EvaluationSource,
+  QuestionKind,
+  RequestStatus,
+} from "@/lib/generated/prisma/enums";
 
-export const QUESTION_KINDS = ["multiple_choice", "free_text"] as const;
-export type QuestionKind = (typeof QUESTION_KINDS)[number];
-export const questionKindSchema = z.enum(QUESTION_KINDS);
-
-export const REQUEST_STATUS = ["open", "accepted", "declined", "withdrawn"] as const;
-export type RequestStatus = (typeof REQUEST_STATUS)[number];
-export const requestStatusSchema = z.enum(REQUEST_STATUS);
-
-export const EVALUATION_SOURCES = ["ai", "rule"] as const;
-export type EvaluationSource = (typeof EVALUATION_SOURCES)[number];
+export const assessmentStatusSchema = z.enum(PrismaEnums.AssessmentStatus);
+export const questionKindSchema = z.enum(PrismaEnums.QuestionKind);
+export const requestStatusSchema = z.enum(PrismaEnums.RequestStatus);
+export const evaluationSourceSchema = z.enum(PrismaEnums.EvaluationSource);
 
 /** Schweregrad eines Defizits */
 export const SEVERITY_LABELS: Record<number, string> = {

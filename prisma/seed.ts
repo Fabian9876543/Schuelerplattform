@@ -41,6 +41,9 @@ async function main() {
 
   // Alles Alte weg, damit der Seed wiederholbar ist.
   // Die Reihenfolge folgt den Fremdschluesseln.
+  // Auch die Anmeldeversuche: Sonst bleibt nach dem Seeding eine Sperre aus
+  // einem frueheren Lauf bestehen, und die Beispielkonten kommen nicht herein.
+  await prisma.loginAttempt.deleteMany();
   await prisma.tutoringRequest.deleteMany();
   await prisma.studyTask.deleteMany();
   await prisma.deficit.deleteMany();

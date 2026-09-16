@@ -4,7 +4,11 @@ import { fail, fromZodError, ok, withUser } from "@/lib/api";
 import { prisma } from "@/lib/db";
 
 const schema = z.object({
-  status: z.enum(["accepted", "declined", "withdrawn"]),
+  // Nicht der volle RequestStatus: "open" ist der Ausgangszustand und laesst
+  // sich nicht setzen.
+  status: z.enum(["accepted", "declined", "withdrawn"], {
+    error: "Unbekannte Aktion.",
+  }),
   responseMessage: z.string().trim().max(1000).nullable().optional(),
 });
 
