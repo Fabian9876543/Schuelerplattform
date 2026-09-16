@@ -8,11 +8,16 @@ import {
   subjectSchema,
 } from "@/lib/constants";
 import { prisma } from "@/lib/db";
+import { LIMITS } from "@/lib/limits";
 
 const schema = z.object({
   subject: subjectSchema,
   maxGradeLevel: z.coerce.number().int().min(MIN_GRADE_LEVEL).max(MAX_GRADE_LEVEL),
-  description: z.string().trim().min(10, "Beschreibe kurz, wobei du helfen kannst."),
+  description: z
+    .string()
+    .trim()
+    .min(10, "Beschreibe kurz, wobei du helfen kannst.")
+    .max(LIMITS.descriptionLength, "Die Beschreibung ist zu lang."),
   topics: z.string().trim().min(1, "Bitte gib mindestens ein Thema an."),
   active: z.boolean().optional(),
 });

@@ -3,10 +3,15 @@ import { z } from "zod";
 import { fail, fromZodError, ok, withUser } from "@/lib/api";
 import { normalizeTopic, subjectSchema } from "@/lib/constants";
 import { prisma } from "@/lib/db";
+import { LIMITS, goalsOfUser } from "@/lib/limits";
 import { atNoon } from "@/lib/planning";
 
 const schema = z.object({
-  title: z.string().trim().min(3, "Bitte gib der Klausur einen Titel."),
+  title: z
+    .string()
+    .trim()
+    .min(3, "Bitte gib der Klausur einen Titel.")
+    .max(LIMITS.titleLength, "Der Titel ist zu lang."),
   subject: subjectSchema,
   examDate: z.string().min(1, "Bitte gib das Datum der Klausur an."),
   topics: z
@@ -19,6 +24,15 @@ export async function POST(request: Request) {
   return withUser(async (user) => {
     const parsed = schema.safeParse(await request.json());
     if (!parsed.success) return fromZodError(parsed.error);
+
+    // Deckelt die Zahl der Lernvorhaben - und damit indirekt die Zahl der
+    // kostenpflichtigen Selbsttests, die sich daraus starten lassen.
+    if ((await goalsOfUser(user.id)) >= LIMITS.goalsPerUser) {
+      return fail(
+        `Du hast schon ${LIMITS.goalsPerUser} Klausuren eingetragen. Loesche eine alte, bevor du eine neue anlegst.`,
+        429,
+      );
+    }
 
     const examDate = atNoon(new Date(parsed.data.examDate));
     if (Number.isNaN(examDate.getTime())) return fail("Das Datum konnte nicht gelesen werden.");
@@ -38,6 +52,9 @@ export async function POST(request: Request) {
 
     if (topics.length === 0) return fail("Bitte trage mindestens ein Thema ein.");
     if (topics.length > 12) return fail("Mehr als 12 Themen werden schnell unuebersichtlich.");
+    if (topics.some((name) => name.length > LIMITS.topicLength)) {
+      return fail(`Ein Thema darf hoechstens ${LIMITS.topicLength} Zeichen lang sein.`);
+    }
 
     const goal = await prisma.learningGoal.create({
       data: {

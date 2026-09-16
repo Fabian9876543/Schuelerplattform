@@ -237,3 +237,14 @@ model TutoringRequest {
   @@index([requesterId])
   @@index([tutorOfferId])
 }
+
+/// Fehlgeschlagene Anmeldeversuche - bremst das Durchprobieren von Passwoertern.
+/// Gezaehlt wird nach E-Mail, nicht nach IP: Schueler sitzen im selben
+/// Schul-WLAN hinter einer Adresse, eine IP-Sperre traefe die ganze Klasse.
+model LoginAttempt {
+  id        String   @id @default(cuid())
+  email     String
+  createdAt DateTime @default(now())
+
+  @@index([email, createdAt])
+}

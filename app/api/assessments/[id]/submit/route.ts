@@ -3,6 +3,7 @@ import { z } from "zod";
 import { getCoach, type AnsweredQuestion } from "@/lib/ai";
 import { fail, fromZodError, ok, withUser } from "@/lib/api";
 import { prisma } from "@/lib/db";
+import { LIMITS } from "@/lib/limits";
 import { buildStudyPlan, daysBetween } from "@/lib/planning";
 import { parseOptions } from "@/lib/questions";
 
@@ -10,7 +11,13 @@ const schema = z.object({
   answers: z.array(
     z.object({
       questionId: z.string(),
-      answerText: z.string().nullable().optional(),
+      // Laenge begrenzen: Der Text geht unveraendert in den Auswertungs-Prompt,
+      // jedes Zeichen zaehlt also als Eingabe-Token.
+      answerText: z
+        .string()
+        .max(LIMITS.answerLength, "Deine Antwort ist zu lang. Fasse dich etwas kuerzer.")
+        .nullable()
+        .optional(),
       answerIndex: z.number().int().nullable().optional(),
     }),
   ),

@@ -12,11 +12,19 @@ export function ok<T>(data: T, status = 200): NextResponse {
   return NextResponse.json(data, { status });
 }
 
-/** Wandelt Zod-Fehler in eine lesbare deutsche Meldung. */
+/**
+ * Wandelt Zod-Fehler in eine lesbare deutsche Meldung.
+ *
+ * Ohne den technischen Feldpfad: "answers.0.answerText: Deine Antwort ist zu
+ * lang" sagt einer Schuelerin nichts. Die Meldungen sind so formuliert, dass
+ * sie fuer sich stehen; der Pfad landet stattdessen im Server-Log.
+ */
 export function fromZodError(error: ZodError): NextResponse {
   const first = error.issues[0];
-  const path = first?.path.join(".");
-  return fail(path ? `${path}: ${first.message}` : (first?.message ?? "Ungueltige Eingabe."));
+  if (first?.path.length) {
+    console.warn("[api] ungueltige Eingabe bei", first.path.join("."), "-", first.message);
+  }
+  return fail(first?.message ?? "Ungueltige Eingabe.");
 }
 
 /**

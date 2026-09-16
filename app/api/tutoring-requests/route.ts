@@ -2,11 +2,16 @@ import { z } from "zod";
 
 import { fail, fromZodError, ok, withUser } from "@/lib/api";
 import { prisma } from "@/lib/db";
+import { LIMITS } from "@/lib/limits";
 
 const schema = z.object({
   tutorOfferId: z.string().min(1),
-  topic: z.string().trim().min(1, "Bitte gib an, worum es geht."),
-  message: z.string().trim().min(10, "Schreib kurz, wobei du Hilfe brauchst."),
+  topic: z.string().trim().min(1, "Bitte gib an, worum es geht.").max(LIMITS.topicLength, "Das Thema ist zu lang."),
+  message: z
+    .string()
+    .trim()
+    .min(10, "Schreib kurz, wobei du Hilfe brauchst.")
+    .max(LIMITS.messageLength, "Die Nachricht ist zu lang."),
   deficitId: z.string().nullable().optional(),
 });
 

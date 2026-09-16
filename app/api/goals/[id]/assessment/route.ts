@@ -1,6 +1,7 @@
 import { fail, ok, withUser } from "@/lib/api";
 import { getCoach } from "@/lib/ai";
 import { prisma } from "@/lib/db";
+import { LIMITS, assessmentsToday } from "@/lib/limits";
 import { serializeOptions } from "@/lib/questions";
 
 /**
@@ -25,6 +26,16 @@ export async function POST(_request: Request, context: { params: Promise<{ id: s
 
     const existing = goal.assessments[0];
     if (existing) return ok({ id: existing.id, reused: true });
+
+    // Vor dem Erzeugen pruefen, nicht danach: Jeder Selbsttest kostet rund
+    // 0,09 USD an API-Nutzung. Ein wiederverwendeter zaehlt nicht mit, sonst
+    // wuerde blosses Fortsetzen das Kontingent aufbrauchen.
+    if ((await assessmentsToday(user.id)) >= LIMITS.assessmentsPerDay) {
+      return fail(
+        `Du hast heute schon ${LIMITS.assessmentsPerDay} Selbsttests gemacht. Morgen geht es weiter.`,
+        429,
+      );
+    }
 
     const coach = getCoach();
     const quiz = await coach.generateQuiz({
