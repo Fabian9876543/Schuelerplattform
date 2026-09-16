@@ -133,6 +133,23 @@ Auswertung den Antworten folgt oder nur das Bauchgefühl wiederholt.
 Das ist auch der schnellste Weg, um nach einer Änderung an den Prompts in
 `lib/ai/claude-coach.ts` zu sehen, ob sie etwas gebracht hat.
 
+### Stand der Überprüfung
+
+Die Anbindung an Claude wurde am 16.09.2026 in zwei unabhängigen Durchläufen
+geprüft (`npm run ki-probe`, Mathematik Klasse 11, je acht neu erzeugte Fragen):
+
+- **Alle** als richtig markierten Multiple-Choice-Lösungen waren fachlich
+  korrekt – einzeln nachgerechnet, beide Läufe.
+- Jedes Teilthema bekam mindestens eine Frage.
+- Die Lückenerkennung folgt den Antworten, nicht der Selbsteinschätzung: Ein
+  Thema mit „5 von 5" und lauter falschen Antworten wurde als gravierende Lücke
+  erkannt, ein Thema mit „2 von 5" und lauter richtigen Antworten nur als
+  leichte.
+
+Wer die Prompts in `lib/ai/claude-coach.ts` ändert, sollte diese Probe danach
+erneut fahren – sie ist der einzige Ort, an dem fachliche Fehler auffallen,
+bevor sie bei Schülern landen.
+
 ### Gemessene Werte
 
 Ein vollständiger Durchlauf mit `claude-opus-5` (Stand: erster echter Lauf,
