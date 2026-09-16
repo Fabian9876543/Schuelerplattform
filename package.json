@@ -2,6 +2,9 @@
   "name": "schuelerplattform",
   "version": "0.1.0",
   "private": true,
+  "engines": {
+    "node": ">=20.12"
+  },
   "type": "module",
   "scripts": {
     "dev": "next dev",
