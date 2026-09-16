@@ -1,0 +1,239 @@
+// Schuelerplattform - Datenmodell
+//
+// Hinweis zu SQLite: Prisma unterstuetzt bei SQLite weder enum-Typen noch
+// Array-Felder. Alle Aufzaehlungen liegen deshalb als String-Spalte vor; die
+// erlaubten Werte stehen zentral in lib/constants.ts und werden dort per Zod
+// validiert. Listen (z.B. Antwortoptionen) werden als JSON-String abgelegt und
+// beim Lesen ueber einen Zod-Parser gefuehrt, nie mit blankem JSON.parse.
+
+generator client {
+  provider = "prisma-client"
+  output   = "../lib/generated/prisma"
+}
+
+datasource db {
+  provider = "sqlite"
+}
+
+model User {
+  id           String   @id @default(cuid())
+  email        String   @unique
+  passwordHash String
+  name         String
+  gradeLevel   Int
+  createdAt    DateTime @default(now())
+
+  sessions          Session[]
+  learningGoals     LearningGoal[]
+  tutorOffers       TutorOffer[]
+  sentRequests      TutoringRequest[] @relation("RequestsSent")
+}
+
+model Session {
+  id        String   @id @default(cuid())
+  token     String   @unique
+  userId    String
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+}
+
+/// Ein Lernvorhaben: "Am 12.10. Mathe-Klausur ueber Ableitungen und Kurvendiskussion"
+model LearningGoal {
+  id        String   @id @default(cuid())
+  userId    String
+  title     String
+  subject   String
+  examDate  DateTime
+  createdAt DateTime @default(now())
+
+  user        User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  topics      Topic[]
+  assessments Assessment[]
+
+  @@index([userId])
+}
+
+/// Ein Teilthema innerhalb eines Lernvorhabens
+model Topic {
+  id             String @id @default(cuid())
+  learningGoalId String
+  name           String
+  /// kleingeschrieben und normalisiert - Schluessel fuer das Tutoren-Matching
+  normalized     String
+  position       Int
+
+  learningGoal LearningGoal @relation(fields: [learningGoalId], references: [id], onDelete: Cascade)
+  questions    Question[]
+  selfRatings  SelfRating[]
+  deficits     Deficit[]
+  studyTasks   StudyTask[]
+
+  @@index([learningGoalId])
+}
+
+/// Ein Durchlauf des Selbsttests
+model Assessment {
+  id             String    @id @default(cuid())
+  learningGoalId String
+  /// draft | submitted | evaluated
+  status         String    @default("draft")
+  createdAt      DateTime  @default(now())
+  submittedAt    DateTime?
+
+  learningGoal LearningGoal @relation(fields: [learningGoalId], references: [id], onDelete: Cascade)
+  questions    Question[]
+  selfRatings  SelfRating[]
+  evaluation   Evaluation?
+
+  @@index([learningGoalId])
+}
+
+model Question {
+  id           String @id @default(cuid())
+  assessmentId String
+  topicId      String?
+  /// multiple_choice | free_text
+  kind         String
+  prompt       String
+  position     Int
+
+  /// JSON-Array der Antwortmoeglichkeiten (nur bei multiple_choice)
+  optionsJson  String?
+  correctIndex Int?
+  /// Erwartungshorizont fuer Freitextfragen - worauf es in der Antwort ankommt
+  expectedPoints String?
+
+  // Antwort und Bewertung
+  answerText  String?
+  answerIndex Int?
+  isCorrect   Boolean?
+  /// 0-100, bei Freitext von der Auswertung vergeben
+  score       Int?
+  feedback    String?
+
+  assessment Assessment @relation(fields: [assessmentId], references: [id], onDelete: Cascade)
+  topic      Topic?     @relation(fields: [topicId], references: [id], onDelete: SetNull)
+
+  @@index([assessmentId])
+  @@index([topicId])
+}
+
+/// Selbsteinschaetzung des Schuelers pro Teilthema (1 = unsicher, 5 = sicher)
+model SelfRating {
+  id           String @id @default(cuid())
+  assessmentId String
+  topicId      String
+  confidence   Int
+
+  assessment Assessment @relation(fields: [assessmentId], references: [id], onDelete: Cascade)
+  topic      Topic      @relation(fields: [topicId], references: [id], onDelete: Cascade)
+
+  @@unique([assessmentId, topicId])
+  @@index([assessmentId])
+}
+
+/// Ergebnis der Auswertung eines Selbsttests
+model Evaluation {
+  id           String   @id @default(cuid())
+  assessmentId String   @unique
+  summary      String
+  /// 0-100
+  overallScore Int
+  /// ai | rule - woher die Auswertung stammt
+  source       String
+  createdAt    DateTime @default(now())
+
+  assessment Assessment  @relation(fields: [assessmentId], references: [id], onDelete: Cascade)
+  deficits   Deficit[]
+  studyTasks StudyTask[]
+}
+
+/// Ein erkanntes Defizit - der Anknuepfungspunkt fuer die Nachhilfesuche
+model Deficit {
+  id           String @id @default(cuid())
+  evaluationId String
+  topicId      String
+  /// 1 = leicht, 2 = deutlich, 3 = gravierend
+  severity     Int
+  explanation  String
+
+  evaluation Evaluation        @relation(fields: [evaluationId], references: [id], onDelete: Cascade)
+  topic      Topic             @relation(fields: [topicId], references: [id], onDelete: Cascade)
+  requests   TutoringRequest[]
+
+  @@index([evaluationId])
+  @@index([topicId])
+}
+
+/// Eine Aufgabe im Lernplan, fest auf einen Kalendertag gelegt
+model StudyTask {
+  id               String   @id @default(cuid())
+  evaluationId     String
+  topicId          String?
+  dueDate          DateTime
+  title            String
+  description      String
+  estimatedMinutes Int
+  done             Boolean  @default(false)
+
+  evaluation Evaluation @relation(fields: [evaluationId], references: [id], onDelete: Cascade)
+  topic      Topic?     @relation(fields: [topicId], references: [id], onDelete: SetNull)
+
+  @@index([evaluationId])
+}
+
+/// "Ich gebe Nachhilfe in Mathe bis Klasse 11"
+model TutorOffer {
+  id            String  @id @default(cuid())
+  userId        String
+  subject       String
+  maxGradeLevel Int
+  description   String
+  active        Boolean @default(true)
+
+  user     User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+  topics   TutorOfferTopic[]
+  requests TutoringRequest[]
+
+  @@index([userId])
+  @@index([subject])
+}
+
+model TutorOfferTopic {
+  id           String @id @default(cuid())
+  tutorOfferId String
+  name         String
+  /// kleingeschrieben und normalisiert - Schluessel fuer das Matching
+  normalized   String
+
+  tutorOffer TutorOffer @relation(fields: [tutorOfferId], references: [id], onDelete: Cascade)
+
+  @@index([tutorOfferId])
+}
+
+model TutoringRequest {
+  id           String @id @default(cuid())
+  requesterId  String
+  tutorOfferId String
+  /// optional: aus welchem Defizit die Anfrage entstanden ist
+  deficitId    String?
+  topic        String
+  message      String
+  /// open | accepted | declined | withdrawn
+  status       String @default("open")
+
+  responseMessage String?
+  createdAt       DateTime  @default(now())
+  respondedAt     DateTime?
+
+  requester  User       @relation("RequestsSent", fields: [requesterId], references: [id], onDelete: Cascade)
+  tutorOffer TutorOffer @relation(fields: [tutorOfferId], references: [id], onDelete: Cascade)
+  deficit    Deficit?   @relation(fields: [deficitId], references: [id], onDelete: SetNull)
+
+  @@index([requesterId])
+  @@index([tutorOfferId])
+}

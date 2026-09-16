@@ -1,0 +1,202 @@
+import Anthropic from "@anthropic-ai/sdk";
+import { zodOutputFormat } from "@anthropic-ai/sdk/helpers/zod";
+
+import {
+  evaluationResultSchema,
+  quizSchema,
+  type CoachEvaluation,
+  type CoachQuiz,
+  type EvaluationRequest,
+  type LearningCoach,
+  type QuizRequest,
+} from "@/lib/ai/types";
+
+const MODEL = "claude-opus-5";
+const MAX_TOKENS = 16000;
+
+/**
+ * Auswertung mit Claude.
+ *
+ * Das Ausgabeformat wird ueber zodOutputFormat erzwungen - es wird also kein
+ * Freitext geparst. Die Themen gehen als nummerierte Liste hinein und kommen
+ * als Index zurueck, damit das Modell keine Datenbank-IDs abschreiben muss.
+ */
+export class ClaudeCoach implements LearningCoach {
+  private client: Anthropic;
+
+  constructor(apiKey?: string) {
+    this.client = apiKey ? new Anthropic({ apiKey }) : new Anthropic();
+  }
+
+  async generateQuiz(request: QuizRequest): Promise<CoachQuiz> {
+    const topicList = request.topics.map((topic, index) => `${index}: ${topic.name}`).join("\n");
+
+    const response = await this.client.messages.parse({
+      model: MODEL,
+      max_tokens: MAX_TOKENS,
+      thinking: { type: "adaptive" },
+      system:
+        "Du bist eine erfahrene Lehrkraft und erstellst kurze Selbsttests fuer Schuelerinnen und Schueler in Deutschland. " +
+        "Du formulierst fachlich korrekt, altersgerecht und auf Deutsch. Die Fragen pruefen Verstaendnis, nicht Auswendiglernen.",
+      messages: [
+        {
+          role: "user",
+          content: [
+            `Erstelle einen kurzen Selbsttest fuer eine Klausur im Fach ${request.subject}, Klassenstufe ${request.gradeLevel}.`,
+            "",
+            "Teilthemen (mit Index):",
+            topicList,
+            "",
+            "Vorgaben:",
+            "- Insgesamt 6 bis 8 Fragen.",
+            "- Zu jedem Teilthema mindestens eine Frage; setze topicIndex auf den passenden Index oben.",
+            "- Ueberwiegend multiple_choice mit genau 4 Antwortmoeglichkeiten und genau einer richtigen Antwort (correctIndex).",
+            "- Dazu 1 bis 2 Fragen vom Typ free_text, bei denen etwas erklaert oder ein Rechenweg beschrieben wird.",
+            "- Bei multiple_choice: options und correctIndex ausfuellen, expectedPoints auf null setzen.",
+            "- Bei free_text: options und correctIndex auf null setzen, expectedPoints ausfuellen.",
+            "- Die falschen Antwortmoeglichkeiten sollen typische Schuelerfehler abbilden, nicht offensichtlich unsinnig sein.",
+          ].join("\n"),
+        },
+      ],
+      output_config: { format: zodOutputFormat(quizSchema) },
+    });
+
+    const parsed = response.parsed_output;
+    if (!parsed) {
+      throw new Error("Claude hat kein verwertbares Quiz geliefert.");
+    }
+
+    const questions = parsed.questions.map((question) => {
+      const topic = request.topics[question.topicIndex];
+      const isMultipleChoice = question.kind === "multiple_choice";
+      // Gegen halb ausgefuellte Antworten absichern: eine MC-Frage ohne
+      // brauchbare Optionen wird als Freitextfrage behandelt.
+      const optionsValid =
+        isMultipleChoice &&
+        Array.isArray(question.options) &&
+        question.options.length >= 2 &&
+        question.correctIndex !== null &&
+        question.correctIndex >= 0 &&
+        question.correctIndex < question.options.length;
+
+      return {
+        topicId: topic?.id ?? null,
+        kind: optionsValid ? ("multiple_choice" as const) : ("free_text" as const),
+        prompt: question.prompt,
+        options: optionsValid ? question.options : null,
+        correctIndex: optionsValid ? question.correctIndex : null,
+        expectedPoints: optionsValid ? null : (question.expectedPoints ?? "Erklaere deinen Gedankengang nachvollziehbar."),
+      };
+    });
+
+    return { source: "ai", questions };
+  }
+
+  async evaluate(request: EvaluationRequest): Promise<CoachEvaluation> {
+    const topicList = request.topics.map((topic, index) => `${index}: ${topic.name}`).join("\n");
+
+    const confidenceByTopic = new Map(
+      request.selfRatings.map((rating) => [rating.topicId, rating.confidence]),
+    );
+
+    const answerBlocks = request.questions.map((question, index) => {
+      const topicName = request.topics.find((topic) => topic.id === question.topicId)?.name ?? "ohne Thema";
+      const lines = [`Frage ${index} (Thema: ${topicName}, Typ: ${question.kind})`, `Frage: ${question.prompt}`];
+
+      if (question.kind === "multiple_choice" && question.options) {
+        lines.push(
+          `Antwortmoeglichkeiten: ${question.options.map((option, i) => `[${i}] ${option}`).join(" | ")}`,
+        );
+        lines.push(`Richtig waere: ${question.correctIndex}`);
+        lines.push(
+          `Angekreuzt: ${question.answerIndex === null ? "nichts angekreuzt" : question.answerIndex}`,
+        );
+      } else {
+        if (question.expectedPoints) lines.push(`Erwartet wird: ${question.expectedPoints}`);
+        lines.push(`Antwort: ${question.answerText?.trim() || "(keine Antwort)"}`);
+      }
+      return lines.join("\n");
+    });
+
+    const ratingLines = request.topics.map((topic, index) => {
+      const confidence = confidenceByTopic.get(topic.id);
+      return `${index}: ${topic.name} - Selbsteinschaetzung ${confidence ?? "keine"} von 5`;
+    });
+
+    const response = await this.client.messages.parse({
+      model: MODEL,
+      max_tokens: MAX_TOKENS,
+      thinking: { type: "adaptive" },
+      system:
+        "Du bist eine erfahrene Lehrkraft und wertest den Selbsttest einer Schuelerin oder eines Schuelers aus. " +
+        "Du schreibst auf Deutsch, direkt in der Du-Form, sachlich und ermutigend, aber ohne Luecken schoenzureden. " +
+        "Du benennst konkret, woran es hakt, statt allgemeine Ratschlaege zu geben.",
+      messages: [
+        {
+          role: "user",
+          content: [
+            `Fach: ${request.subject}, Klassenstufe: ${request.gradeLevel}.`,
+            `Bis zur Klausur sind es noch ${request.daysUntilExam} Tage.`,
+            "",
+            "Teilthemen (mit Index):",
+            topicList,
+            "",
+            "Selbsteinschaetzung (1 = sehr unsicher, 5 = sehr sicher):",
+            ...ratingLines,
+            "",
+            "Antworten im Selbsttest:",
+            ...answerBlocks,
+            "",
+            "Deine Aufgabe:",
+            "- Bewerte jede Frage einzeln (questionFeedback, questionIndex ist die Nummer oben, score von 0 bis 100).",
+            "- Gib eine Gesamtrueckmeldung (summary) von 2 bis 4 Saetzen und einen overallScore von 0 bis 100.",
+            "- Liste unter deficits nur die Teilthemen auf, bei denen wirklich eine Luecke besteht.",
+            "- Beziehe dabei die Selbsteinschaetzung mit ein: Wer sich unsicher fuehlt, aber richtig geantwortet hat, braucht eher Bestaetigung als Wiederholung.",
+            "- severity: 1 = leichte Luecke, 2 = deutliche Luecke, 3 = gravierende Luecke.",
+            "- focus beschreibt knapp, was konkret geuebt werden soll - dieser Text erscheint spaeter im Lernplan.",
+            "- Wenn alles sitzt, darf deficits leer bleiben.",
+          ].join("\n"),
+        },
+      ],
+      output_config: { format: zodOutputFormat(evaluationResultSchema) },
+    });
+
+    const parsed = response.parsed_output;
+    if (!parsed) {
+      throw new Error("Claude hat keine verwertbare Auswertung geliefert.");
+    }
+
+    const questionFeedback = parsed.questionFeedback
+      .filter((entry) => request.questions[entry.questionIndex] !== undefined)
+      .map((entry) => {
+        const question = request.questions[entry.questionIndex];
+        const isCorrect =
+          question.kind === "multiple_choice" && question.correctIndex !== null
+            ? question.answerIndex === question.correctIndex
+            : null;
+        return {
+          questionId: question.id,
+          score: entry.score,
+          feedback: entry.feedback,
+          isCorrect,
+        };
+      });
+
+    const deficits = parsed.deficits
+      .filter((deficit) => request.topics[deficit.topicIndex] !== undefined)
+      .map((deficit) => ({
+        topicId: request.topics[deficit.topicIndex].id,
+        severity: deficit.severity,
+        explanation: deficit.explanation,
+        focus: deficit.focus,
+      }));
+
+    return {
+      summary: parsed.summary,
+      overallScore: parsed.overallScore,
+      source: "ai",
+      questionFeedback,
+      deficits,
+    };
+  }
+}
