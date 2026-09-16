@@ -147,8 +147,18 @@ describe("RuleCoach.evaluate", () => {
     expect(result.deficits.some((d) => d.topicId === "t1")).toBe(true);
   });
 
-  it("weist darauf hin, dass nicht inhaltlich bewertet wurde", async () => {
-    const result = await new RuleCoach().evaluate(baseRequest());
-    expect(result.summary).toContain("regelbasiert");
+  it("erfindet keinen fachlichen Schwerpunkt", async () => {
+    // Ohne Fachwissen waere ein "Schwerpunkt" nur eine Umschreibung des
+    // Themennamens. Der Hinweis auf die Herkunft steht in der Oberflaeche.
+    const result = await new RuleCoach().evaluate(
+      baseRequest({
+        selfRatings: [
+          { topicId: "t1", confidence: 1 },
+          { topicId: "t2", confidence: 5 },
+        ],
+      }),
+    );
+    expect(result.deficits[0].focus).toBeUndefined();
+    expect(result.source).toBe("rule");
   });
 });

@@ -113,7 +113,7 @@ export interface CoachEvaluation {
   overallScore: number;
   source: "ai" | "rule";
   questionFeedback: { questionId: string; score: number; feedback: string; isCorrect: boolean | null }[];
-  deficits: { topicId: string; severity: number; explanation: string; focus: string }[];
+  deficits: { topicId: string; severity: number; explanation: string; focus?: string }[];
 }
 
 export interface CoachQuiz {

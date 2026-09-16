@@ -140,7 +140,8 @@ export class RuleCoach implements LearningCoach {
             bucket.mcTotal > 0
               ? `${bucket.mcCorrect} von ${bucket.mcTotal} Fragen richtig, und du fuehlst dich hier unsicher.`
               : `Du hast dich bei "${topic.name}" als unsicher eingeschaetzt (${confidence} von 5).`,
-          focus: `Grundlagen zu ${topic.name} wiederholen und an Aufgaben ueben`,
+          // Kein Schwerpunkt: ohne Fachwissen waere er nur eine Umschreibung
+          // des Themennamens und wuerde die Aufgabe doppelt beschreiben.
         });
       }
     }
@@ -149,12 +150,14 @@ export class RuleCoach implements LearningCoach {
       ? Math.round(topicScores.reduce((sum, value) => sum + value, 0) / topicScores.length)
       : 0;
 
+    // Der Hinweis auf die regelbasierte Herkunft steht in der Oberflaeche und
+    // gehoert nicht zusaetzlich in den Text - sonst liest man ihn zweimal.
     const summary =
       deficits.length === 0
-        ? `Du wirkst in allen ${request.topics.length} Themen recht sicher. Nutze die Zeit bis zur Klausur fuer Wiederholungen. Hinweis: Diese Auswertung ist regelbasiert und stuetzt sich auf deine Selbsteinschaetzung - sie bewertet die Freitextantworten nicht inhaltlich.`
+        ? `Du wirkst in allen ${request.topics.length} Themen recht sicher. Nutze die Zeit bis zur Klausur fuer Wiederholungen.`
         : `Bei ${deficits.length} von ${request.topics.length} Themen gibt es noch Luecken, am deutlichsten bei "${
             request.topics.find((t) => t.id === deficits[0].topicId)?.name ?? ""
-          }". Der Lernplan setzt genau dort an. Hinweis: Diese Auswertung ist regelbasiert und stuetzt sich auf deine Selbsteinschaetzung - sie bewertet die Freitextantworten nicht inhaltlich.`;
+          }". Der Lernplan setzt genau dort an.`;
 
     return { summary, overallScore, source: "rule", questionFeedback, deficits };
   }

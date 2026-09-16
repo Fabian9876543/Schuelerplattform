@@ -76,3 +76,27 @@ describe("buildStudyPlan", () => {
     expect(tasks[0].description).toContain("Kettenregel");
   });
 });
+
+describe("Verteilung ueber laengere Zeitraeume", () => {
+  it("streckt die Wiederholungen, wenn viel Zeit bleibt", () => {
+    const exam = addDays(today, 30);
+    const tasks = buildStudyPlan([deficit("Ableitungen", 3)], exam, today);
+
+    const topicTasks = tasks.filter((t) => t.topicId === "t-Ableitungen");
+    const last = topicTasks[topicTasks.length - 1];
+    // Die letzte Wiederholung soll in der zweiten Haelfte der Zeit liegen,
+    // nicht schon nach einer Woche abgeschlossen sein.
+    expect(daysBetween(today, last.dueDate)).toBeGreaterThan(14);
+  });
+
+  it("behaelt enge Abstaende bei knapper Zeit", () => {
+    const exam = addDays(today, 8);
+    const tasks = buildStudyPlan([deficit("Ableitungen", 3)], exam, today);
+
+    for (const task of tasks) {
+      expect(task.dueDate.getTime()).toBeLessThan(exam.getTime());
+    }
+    // Trotz kurzer Frist mehr als nur die Generalprobe.
+    expect(tasks.filter((t) => t.topicId === "t-Ableitungen").length).toBeGreaterThanOrEqual(2);
+  });
+});

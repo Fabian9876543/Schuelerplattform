@@ -1,0 +1,78 @@
+import { OfferForm } from "@/app/nachhilfe/anbieten/offer-form";
+import { Card, PageTitle } from "@/components/ui";
+import { requireUser } from "@/lib/auth";
+import { prisma } from "@/lib/db";
+
+export default async function OfferPage() {
+  const user = await requireUser();
+
+  const offers = await prisma.tutorOffer.findMany({
+    where: { userId: user.id },
+    include: {
+      topics: true,
+      _count: { select: { requests: { where: { status: "accepted" } } } },
+    },
+    orderBy: { subject: "asc" },
+  });
+
+  return (
+    <div className="mx-auto max-w-2xl">
+      <PageTitle
+        title="Nachhilfe geben"
+        subtitle="Trage ein, worin du anderen helfen kannst. Du wirst dann bei passenden Luecken vorgeschlagen."
+      />
+
+      {offers.length > 0 ? (
+        <div className="mb-6 space-y-3">
+          <h2 className="font-medium text-slate-900">Deine Angebote</h2>
+          {offers.map((offer) => (
+            <Card key={offer.id}>
+              <div className="flex flex-wrap items-start justify-between gap-2">
+                <div>
+                  <h3 className="font-medium text-slate-900">
+                    {offer.subject}{" "}
+                    <span className="text-sm font-normal text-slate-500">
+                      bis Klasse {offer.maxGradeLevel}
+                    </span>
+                  </h3>
+                  <p className="mt-1 text-sm text-slate-600">{offer.description}</p>
+                  <div className="mt-2 flex flex-wrap gap-1.5">
+                    {offer.topics.map((topic) => (
+                      <span
+                        key={topic.id}
+                        className="rounded-full bg-slate-100 px-2.5 py-0.5 text-xs text-slate-600"
+                      >
+                        {topic.name}
+                      </span>
+                    ))}
+                  </div>
+                </div>
+                <div className="text-right text-xs text-slate-500">
+                  {offer.active ? (
+                    <span className="rounded-full bg-emerald-50 px-2.5 py-0.5 text-emerald-700">
+                      aktiv
+                    </span>
+                  ) : (
+                    <span className="rounded-full bg-slate-100 px-2.5 py-0.5">pausiert</span>
+                  )}
+                  <div className="mt-1">{offer._count.requests} mal angenommen</div>
+                </div>
+              </div>
+            </Card>
+          ))}
+        </div>
+      ) : null}
+
+      <Card>
+        <h2 className="mb-1 font-medium text-slate-900">
+          {offers.length > 0 ? "Angebot hinzufuegen oder aendern" : "Angebot anlegen"}
+        </h2>
+        <p className="mb-4 text-sm text-slate-600">
+          Pro Fach gibt es ein Angebot. Traegst du ein Fach erneut ein, wird das bestehende Angebot
+          aktualisiert.
+        </p>
+        <OfferForm />
+      </Card>
+    </div>
+  );
+}

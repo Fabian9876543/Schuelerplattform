@@ -1,4 +1,4 @@
-import { PrismaBetterSQLite3 } from "@prisma/adapter-better-sqlite3";
+import { PrismaBetterSqlite3 } from "@prisma/adapter-better-sqlite3";
 import { PrismaClient } from "@/lib/generated/prisma/client";
 
 // Ab Prisma 7 bekommt der Client seine Verbindung ueber einen Treiber-Adapter.
@@ -9,7 +9,7 @@ const globalForPrisma = globalThis as unknown as { prisma?: PrismaClient };
 function createClient(): PrismaClient {
   const url = process.env.DATABASE_URL ?? "file:./dev.db";
   return new PrismaClient({
-    adapter: new PrismaBetterSQLite3({ url }),
+    adapter: new PrismaBetterSqlite3({ url }),
   });
 }
 

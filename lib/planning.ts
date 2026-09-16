@@ -47,16 +47,31 @@ export function daysBetween(a: Date, b: Date): number {
   return Math.round(ms / 86_400_000);
 }
 
-/** Wie viele Wiederholungen ein Thema je nach Schwere verdient. */
-function sessionOffsets(severity: number): number[] {
+/**
+ * Wie viele Wiederholungen ein Thema je nach Schwere verdient, in Tagen nach
+ * der ersten Einheit. Die Abstaende folgen dem Spaced-Repetition-Gedanken.
+ */
+function baseOffsets(severity: number): number[] {
   if (severity >= 3) return [0, 3, 7];
   if (severity === 2) return [0, 4];
   return [0];
 }
 
+/**
+ * Bei viel Vorlaufzeit werden die Abstaende gestreckt, damit die letzte
+ * Wiederholung nicht Wochen vor der Klausur liegt. Bei knapper Zeit bleibt es
+ * bei den engen Abstaenden.
+ */
+function sessionOffsets(severity: number, availableDays: number): number[] {
+  const scale = Math.min(3, Math.max(1, availableDays / 10));
+  return baseOffsets(severity).map((offset) => Math.round(offset * scale));
+}
+
 function minutesFor(severity: number, isRepetition: boolean): number {
   const base = severity >= 3 ? 60 : severity === 2 ? 45 : 30;
-  return isRepetition ? Math.round(base * 0.5) : base;
+  if (!isRepetition) return base;
+  // Auf 5 Minuten runden - "23 Min." liest sich wie ein Rechenfehler.
+  return Math.max(15, Math.round((base * 0.5) / 5) * 5);
 }
 
 function describe(
@@ -70,8 +85,8 @@ function describe(
     // hier - er ist immer fachlich genauer als eine allgemeine Vorlage.
     const base =
       severity >= 3
-        ? `Arbeite ${topicName} von Grund auf durch: Regeln im Heft nachlesen, ein Beispiel Schritt fuer Schritt nachrechnen und anschliessend zwei Aufgaben allein loesen.`
-        : `Wiederhole die Regeln zu ${topicName} und rechne zwei bis drei Uebungsaufgaben.`;
+        ? `Arbeite ${topicName} von Grund auf durch: im Heft oder Buch nachlesen, ein Beispiel Schritt fuer Schritt nachvollziehen und anschliessend zwei Aufgaben allein bearbeiten.`
+        : `Wiederhole die Grundlagen zu ${topicName} und bearbeite zwei bis drei Uebungsaufgaben.`;
     return {
       title: `${topicName}: Grundlagen aufarbeiten`,
       description: focus ? `Schwerpunkt: ${focus}. ${base}` : base,
@@ -81,13 +96,13 @@ function describe(
     return {
       title: `${topicName}: ueben`,
       description: focus
-        ? `Loese Aufgaben zu ${topicName} ohne Hilfsmittel, besonders zu: ${focus}. Notiere dir, an welcher Stelle du haengen bleibst.`
-        : `Loese Aufgaben zu ${topicName} ohne Hilfsmittel. Notiere dir, an welcher Stelle du haengen bleibst.`,
+        ? `Bearbeite Aufgaben zu ${topicName} ohne Hilfsmittel, besonders zu: ${focus}. Notiere dir, an welcher Stelle du haengen bleibst.`
+        : `Bearbeite Aufgaben zu ${topicName} ohne Hilfsmittel. Notiere dir, an welcher Stelle du haengen bleibst.`,
     };
   }
   return {
     title: `${topicName}: kurz auffrischen`,
-    description: `Gehe deine Notizen zu ${topicName} durch und rechne eine Aufgabe zur Kontrolle.`,
+    description: `Gehe deine Notizen zu ${topicName} durch und bearbeite eine Aufgabe zur Kontrolle.`,
   };
 }
 
@@ -125,7 +140,7 @@ export function buildStudyPlan(
   ordered.forEach((deficit, index) => {
     const startOffset = ordered.length > 1 ? Math.min(Math.round((index * spread) / ordered.length), lastDayOffset) : 0;
 
-    sessionOffsets(deficit.severity).forEach((offset, round) => {
+    sessionOffsets(deficit.severity, lastDayOffset).forEach((offset, round) => {
       const dayOffset = startOffset + offset;
       // Was hinter den letzten Lerntag fiele, wird nicht erfunden - ausser der
       // ersten Einheit, die zur Not auf den letzten Tag rutscht.
@@ -154,7 +169,7 @@ export function buildStudyPlan(
     topicId: null,
     dueDate: addDays(start, lastDayOffset),
     title: "Generalprobe vor der Klausur",
-    description: `Gehe alle Themen noch einmal im Schnelldurchlauf durch: ${topicList}. Rechne zu jedem Thema eine Aufgabe und schau dir gezielt an, was dir noch schwerfaellt.`,
+    description: `Gehe alle Themen noch einmal im Schnelldurchlauf durch: ${topicList}. Bearbeite zu jedem Thema eine Aufgabe und schau dir gezielt an, was dir noch schwerfaellt.`,
     estimatedMinutes: 45,
   });
 
