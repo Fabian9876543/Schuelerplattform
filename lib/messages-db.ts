@@ -28,6 +28,9 @@ export async function loadThread(requestId: string, userId: string) {
         orderBy: { createdAt: "asc" },
         include: { sender: { select: { id: true, name: true } } },
       },
+      // Die Bewertung gehoert zur selben Ansicht: Die anfragende Person gibt
+      // sie dort ab, die andere sieht sie dort.
+      rating: { select: { stars: true, comment: true, updatedAt: true } },
     },
   });
   if (!request) return null;

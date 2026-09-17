@@ -1,7 +1,10 @@
 import { OfferForm } from "@/app/nachhilfe/anbieten/offer-form";
+import { Stars } from "@/components/stars";
 import { Card, PageTitle } from "@/components/ui";
 import { requireUser } from "@/lib/auth";
 import { prisma } from "@/lib/db";
+import { formatDate } from "@/lib/format";
+import { ratingSummaries, ratingsForOwnOffers } from "@/lib/ratings-db";
 
 export default async function OfferPage() {
   const user = await requireUser();
@@ -14,6 +17,11 @@ export default async function OfferPage() {
     },
     orderBy: { subject: "asc" },
   });
+
+  const [bewertungen, rueckmeldungen] = await Promise.all([
+    ratingSummaries(offers.map((offer) => offer.id)),
+    ratingsForOwnOffers(user.id),
+  ]);
 
   return (
     <div className="mx-auto max-w-2xl">
@@ -56,8 +64,40 @@ export default async function OfferPage() {
                     <span className="rounded-full bg-slate-100 px-2.5 py-0.5">pausiert</span>
                   )}
                   <div className="mt-1">{offer._count.requests} mal angenommen</div>
+                  {bewertungen.has(offer.id) ? (
+                    <div className="mt-1 flex justify-end">
+                      <Stars
+                        value={bewertungen.get(offer.id)!.average}
+                        count={bewertungen.get(offer.id)!.count}
+                      />
+                    </div>
+                  ) : (
+                    <div className="mt-1">noch keine Rueckmeldungen</div>
+                  )}
                 </div>
               </div>
+            </Card>
+          ))}
+        </div>
+      ) : null}
+
+      {rueckmeldungen.length > 0 ? (
+        <div className="mb-6 space-y-3">
+          <h2 className="font-medium text-slate-900">Was Mitschueler zurueckgemeldet haben</h2>
+          {rueckmeldungen.map((rueckmeldung) => (
+            <Card key={rueckmeldung.id}>
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <Stars value={rueckmeldung.stars} />
+                <span className="text-xs text-slate-500">
+                  {rueckmeldung.rater.name} &middot; {rueckmeldung.request.topic} &middot;{" "}
+                  {formatDate(rueckmeldung.updatedAt)}
+                </span>
+              </div>
+              {rueckmeldung.comment ? (
+                <p className="mt-2 whitespace-pre-wrap text-slate-700">
+                  &bdquo;{rueckmeldung.comment}&ldquo;
+                </p>
+              ) : null}
             </Card>
           ))}
         </div>

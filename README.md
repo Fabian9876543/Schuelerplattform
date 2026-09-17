@@ -9,7 +9,7 @@ aufeinander aufbauen:
 2. **Nachhilfe unter Mitschülern** – wo die Auswertung Lücken zeigt, schlägt die
    App Mitschüler vor, die genau in diesem Fach und Thema helfen können. Eine
    Anfrage lässt sich direkt stellen, annehmen oder ablehnen; nach einer Zusage
-   schreiben sich die beiden in der App.
+   schreiben sich die beiden in der App und geben hinterher eine Rückmeldung.
 
 Der zweite Punkt hängt am ersten: Die erkannten Defizite sind der Suchbegriff
 für die Tutorensuche.
@@ -43,9 +43,9 @@ Alle Beispielkonten haben das Passwort `geheim123`:
 | E-Mail | Schule | Rolle im Beispiel |
 |---|---|---|
 | `lena@schule.de` | Goethe-Gymnasium | hat eine fertig ausgewertete Mathe-Klausur mit Lernplan |
-| `jonas@schule.de` | Goethe-Gymnasium | gibt Nachhilfe in Mathe und Physik, hat eine offene Anfrage |
-| `mira@schule.de` | Goethe-Gymnasium | gibt Nachhilfe in Mathe bis Klasse 13, hat eine Zusage an Tom |
-| `tom@schule.de` | Goethe-Gymnasium | angenommene Anfrage bei Mira, mit angefangenem Nachrichtenverlauf |
+| `jonas@schule.de` | Goethe-Gymnasium | gibt Nachhilfe in Mathe und Physik, offene Anfrage, noch keine Bewertung |
+| `mira@schule.de` | Goethe-Gymnasium | gibt Nachhilfe in Mathe bis Klasse 13, mit 5 und 4 Sternen bewertet |
+| `tom@schule.de` | Goethe-Gymnasium | angenommene Anfrage bei Mira mit Verlauf; gibt selbst Nachhilfe, mit 2 Sternen bewertet |
 | `paul@schule.de` | Goethe-Gymnasium | hat eine Anfrage an Jonas gestellt |
 | `nils@humboldt.de` | Humboldt-Schule | bietet dieselben Mathe-Themen an – für das Goethe-Gymnasium unsichtbar |
 | `sara@humboldt.de` | Humboldt-Schule | ebenso |
@@ -303,6 +303,48 @@ Der offene Verlauf lädt alle acht Sekunden nach, solange der Tab sichtbar ist;
 ruht er im Hintergrund, wird nicht nachgefragt. Das Markieren als gelesen
 passiert beim Aufbau der Seite und hängt nicht am Nachladen.
 
+## Bewertungen
+
+Nach einer Zusage gibt die anfragende Person eine Rückmeldung: ein bis fünf
+Sterne und wahlweise ein Satz dazu. Der Schnitt steht in der Trefferliste neben
+dem Namen, die einzelnen Rückmeldungen sieht der Lernhelfer unter „Nachhilfe
+geben".
+
+Die Regeln, alle serverseitig geprüft:
+
+- **Bewerten darf nur, wer angefragt hat, und erst nach einer Zusage.** Wer nur
+  zugesehen hat, kann keine Note vergeben.
+- **Die Gegenrichtung gibt es nicht.** Sichtbar werden sollen gute Erklärer;
+  eine Note für Hilfesuchende hätte keinen Nutzen, aber jede Menge sozialen
+  Sprengstoff im Klassenzimmer.
+- **Eine Bewertung je Anfrage** (`Rating.requestId` ist `UNIQUE`). Wer seine
+  Meinung ändert, überschreibt sie – es entsteht keine zweite Stimme. Zweimal
+  Nachhilfe heißt dagegen zwei Anfragen und damit zwei Stimmen.
+- **Nicht anonym.** Der Lernhelfer sieht Namen und Kommentar; das Formular sagt
+  das auch. In einer Schulklasse wäre Anonymität ohnehin nur behauptet – der
+  Helfer weiß, wem er wann geholfen hat.
+- **1 bis 5, auch für die Datenbank.** Die Spalte hat einen `CHECK`, nicht nur
+  eine Zod-Regel: Ein Wert wie 9 würde Schnitt und Anzeige unbrauchbar machen,
+  egal über welchen Weg er hereinkäme.
+
+### Wie stark Sterne die Reihenfolge verschieben
+
+`ratingBonus` in `lib/ratings.ts` liefert einen Wert zwischen −1 und +1, während
+ein exakter Thementreffer 3 Punkte bringt. Drei Überlegungen stecken darin:
+
+| Fall | Ergebnis | Warum |
+|---|---|---|
+| noch keine Rückmeldung | 0 | kein Nachteil für Neue – sonst käme niemand zur ersten Anfrage |
+| genau Durchschnitt (3,0) | 0 | derselbe Wert wie „noch unbewertet" |
+| eine Fünf | +0,33 | eine einzelne Stimme ist ein Zufall |
+| drei Fünfen | +1,0 | ab drei Stimmen zählt der Schnitt voll |
+
+Im Seed lässt sich das nachsehen: Bei der Suche nach *Mathematik /
+Kurvendiskussion* steht Mira (4,5 aus 2) vor Jonas (unbewertet) – beide bieten
+das Thema an. Sucht man dagegen ein Thema, das nur Jonas anbietet, steht er
+oben, auch gegen bessere Sterne. **Wer das gesuchte Thema kann, schlägt den,
+der nur beliebt ist.**
+
 ## Grenzen und Schutz
 
 `lib/limits.ts` hält alle Grenzwerte an einer Stelle:
@@ -314,6 +356,7 @@ passiert beim Aufbau der Seite und hängt nicht am Nachladen.
 | Fehlversuche je E-Mail / 15 Min. | 10 | Durchprobieren von Passwörtern |
 | Freitextantwort | 5 000 Zeichen | die Antwort geht in den KI-Prompt, jedes Zeichen kostet |
 | Nachricht | 2 000 Zeichen | begrenzt, was eine einzelne Anfrage in der Datenbank ablegt |
+| Kommentar zur Bewertung | 500 Zeichen | ein Satz reicht, kein Aufsatz |
 
 Die Anmeldesperre greift **auch beim richtigen Passwort** – sonst könnte man
 weiter durchprobieren und beim Treffer trotzdem hereinkommen. Gezählt wird nach
@@ -338,6 +381,8 @@ lib/
   tutors.ts          Datenzugriff für die Tutorensuche
   messages.ts        Regeln für den Nachrichtenverlauf (wer darf lesen, wer schreiben)
   messages-db.ts     die Abfragen dazu, jede mit Nutzerprüfung
+  ratings.ts         Sternschnitt und das Gewicht in der Trefferliste
+  ratings-db.ts      die Abfragen dazu
   auth.ts            E-Mail/Passwort-Anmeldung mit Session-Cookie
 prisma/              Datenmodell, Migrationen, Beispieldaten
 tests/               Vitest-Tests für die Logik
@@ -349,8 +394,9 @@ Schreibzugriffe laufen über Route Handler mit Zod-Validierung.
 ## Tests
 
 ```bash
-npm test         # 55 Tests: Terminverteilung, Matching, Fallback, KI-Schemas,
-                 #            Umplanung, Grenzwerte, Zugang zu Verläufen
+npm test         # 69 Tests: Terminverteilung, Matching, Fallback, KI-Schemas,
+                 #            Umplanung, Grenzwerte, Zugang zu Verläufen,
+                 #            Gewicht der Bewertungen
 npm run build    # Typprüfung und Produktionsbuild
 ```
 
@@ -380,4 +426,5 @@ Die Tests brauchen keinen API-Schlüssel.
 
 - Terminvereinbarung: feste Zeiten statt einer Absprache im Text
 - Rückmeldung nach der Klausur, um die Treffsicherheit der Auswertung zu prüfen
-- Bewertungen für Nachhilfe, damit gute Erklärer sichtbar werden
+- Verwaltung durch die Schule: wer als Lernhelfer zugelassen ist, welche Fächer
+  angeboten werden

@@ -26,6 +26,8 @@ export const LIMITS = {
   topicLength: 100,
   messageLength: 2_000,
   descriptionLength: 1_000,
+  /** Kommentar zu einer Bewertung - ein Satz reicht, kein Aufsatz */
+  commentLength: 500,
 } as const;
 
 // --- reine Funktionen, ohne Datenbank ---------------------------------------

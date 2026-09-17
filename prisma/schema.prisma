@@ -79,6 +79,7 @@ model User {
   tutorOffers       TutorOffer[]
   sentRequests      TutoringRequest[] @relation("RequestsSent")
   sentMessages      Message[]         @relation("MessagesSent")
+  givenRatings      Rating[]          @relation("RatingsGiven")
 
   @@index([schoolId])
 }
@@ -257,6 +258,7 @@ model TutorOffer {
   user     User              @relation(fields: [userId], references: [id], onDelete: Cascade)
   topics   TutorOfferTopic[]
   requests TutoringRequest[]
+  ratings  Rating[]
 
   @@index([userId])
   @@index([subject])
@@ -292,6 +294,7 @@ model TutoringRequest {
   tutorOffer TutorOffer @relation(fields: [tutorOfferId], references: [id], onDelete: Cascade)
   deficit    Deficit?   @relation(fields: [deficitId], references: [id], onDelete: SetNull)
   messages   Message[]
+  rating     Rating?
 
   @@index([requesterId])
   @@index([tutorOfferId])
@@ -319,6 +322,38 @@ model Message {
 
   @@index([requestId, createdAt])
   @@index([senderId])
+}
+
+/// Die Rueckmeldung nach einer Nachhilfe: wie gut wurde erklaert?
+///
+/// Bewertet wird eine einzelne Anfrage, nicht eine Person - deshalb
+/// `requestId @unique`. Wer zweimal Hilfe bekommen hat, gibt zwei
+/// Rueckmeldungen; beide Male gab es ja auch echte Nachhilfe.
+///
+/// Bewerten darf nur, wer angefragt hat, und erst nach einer Zusage. Die
+/// Gegenrichtung gibt es bewusst nicht: Sichtbar werden sollen gute
+/// Erklaerer, nicht "gute" Hilfesuchende.
+///
+/// `tutorOfferId` steht doppelt (er liesse sich ueber die Anfrage finden),
+/// damit sich der Schnitt je Angebot in einer Abfrage bilden laesst. Die
+/// Anfrage wechselt ihr Angebot nie, der Wert kann also nicht auseinanderlaufen.
+model Rating {
+  id           String   @id @default(cuid())
+  requestId    String   @unique
+  tutorOfferId String
+  raterId      String
+  /// 1 bis 5; die Datenbank laesst nichts anderes zu (CHECK in der Migration)
+  stars        Int
+  comment      String?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  request    TutoringRequest @relation(fields: [requestId], references: [id], onDelete: Cascade)
+  tutorOffer TutorOffer      @relation(fields: [tutorOfferId], references: [id], onDelete: Cascade)
+  rater      User            @relation("RatingsGiven", fields: [raterId], references: [id], onDelete: Cascade)
+
+  @@index([tutorOfferId])
+  @@index([raterId])
 }
 
 /// Fehlgeschlagene Anmeldeversuche - bremst das Durchprobieren von Passwoertern.

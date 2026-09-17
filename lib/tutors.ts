@@ -1,5 +1,6 @@
 import { prisma } from "@/lib/db";
 import { findMatches, type MatchResult, type TutorCandidate } from "@/lib/matching";
+import { ratingSummaries } from "@/lib/ratings-db";
 
 /**
  * Laedt passende Angebote aus der Datenbank und bewertet sie.
@@ -28,6 +29,9 @@ export async function searchTutors(options: {
     },
   });
 
+  // Eine Abfrage fuer alle Angebote der Trefferliste, nicht eine je Zeile.
+  const bewertungen = await ratingSummaries(offers.map((offer) => offer.id));
+
   const candidates: TutorCandidate[] = offers.map((offer) => ({
     offerId: offer.id,
     userId: offer.user.id,
@@ -37,6 +41,7 @@ export async function searchTutors(options: {
     description: offer.description,
     topics: offer.topics.map((topic) => ({ name: topic.name, normalized: topic.normalized })),
     acceptedRequests: offer._count.requests,
+    rating: bewertungen.get(offer.id),
   }));
 
   return findMatches(candidates, {

@@ -20,6 +20,50 @@ function topic(name: string) {
   return { name, normalized: normalizeTopic(name) };
 }
 
+describe("Bewertungen in der Trefferliste", () => {
+  it("setzt bei gleicher Passung das besser bewertete Angebot nach vorn", () => {
+    const results = findMatches(
+      [
+        candidate({ userName: "Ohne", topics: [topic("Bruchrechnen")] }),
+        candidate({
+          userName: "Gelobt",
+          topics: [topic("Bruchrechnen")],
+          rating: { average: 5, count: 3 },
+        }),
+      ],
+      { subject: "Mathematik", topic: "Bruchrechnen", gradeLevel: 10 },
+    );
+
+    expect(results.map((r) => r.candidate.userName)).toEqual(["Gelobt", "Ohne"]);
+  });
+
+  it("laesst das passende Thema schwerer wiegen als gute Sterne", () => {
+    // Der Punkt der Deckelung: Wer das gesuchte Thema anbietet, steht oben -
+    // auch gegen ein durchweg mit fuenf Sternen bewertetes Angebot ohne Bezug.
+    const results = findMatches(
+      [
+        candidate({ userName: "Beliebt", topics: [topic("Stochastik")], rating: { average: 5, count: 20 } }),
+        candidate({ userName: "Passend", topics: [topic("Bruchrechnen")] }),
+      ],
+      { subject: "Mathematik", topic: "Bruchrechnen", gradeLevel: 10 },
+    );
+
+    expect(results[0].candidate.userName).toBe("Passend");
+  });
+
+  it("stellt ein unbewertetes Angebot nicht hinter ein schlecht bewertetes", () => {
+    const results = findMatches(
+      [
+        candidate({ userName: "Schwach", rating: { average: 1, count: 5 } }),
+        candidate({ userName: "Neu" }),
+      ],
+      { subject: "Mathematik", gradeLevel: 10 },
+    );
+
+    expect(results[0].candidate.userName).toBe("Neu");
+  });
+});
+
 describe("findMatches", () => {
   it("blendet andere Faecher aus", () => {
     const results = findMatches(

@@ -1,4 +1,5 @@
 import { RequestDialog } from "@/app/nachhilfe/request-dialog";
+import { Stars } from "@/components/stars";
 import { Card, EmptyState, PageTitle } from "@/components/ui";
 import { requireUser } from "@/lib/auth";
 import { SUBJECTS } from "@/lib/constants";
@@ -105,7 +106,19 @@ export default async function TutorSearchPage({
             <Card key={match.candidate.offerId}>
               <div className="flex flex-wrap items-start justify-between gap-4">
                 <div className="flex-1">
-                  <h3 className="font-medium text-slate-900">{match.candidate.userName}</h3>
+                  <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
+                    <h3 className="font-medium text-slate-900">{match.candidate.userName}</h3>
+                    {match.candidate.rating ? (
+                      <Stars
+                        value={match.candidate.rating.average}
+                        count={match.candidate.rating.count}
+                      />
+                    ) : (
+                      // "noch nicht bewertet" ist etwas anderes als "schlecht
+                      // bewertet" - deshalb steht es da, statt einfach zu fehlen.
+                      <span className="text-xs text-slate-500">noch keine Rueckmeldungen</span>
+                    )}
+                  </div>
                   <p className="mt-1 text-sm text-slate-600">{match.candidate.description}</p>
 
                   <div className="mt-2 flex flex-wrap gap-1.5">

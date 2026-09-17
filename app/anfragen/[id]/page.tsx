@@ -2,12 +2,15 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 
 import { MessageThread } from "@/app/anfragen/[id]/message-thread";
+import { RatingForm } from "@/app/anfragen/[id]/rating-form";
 import { StatusBadge } from "@/app/anfragen/status-badge";
+import { Stars } from "@/components/stars";
 import { Card, PageTitle } from "@/components/ui";
 import { requireUser } from "@/lib/auth";
 import { formatDate } from "@/lib/format";
 import { canWrite } from "@/lib/messages";
 import { counterpart, loadThread, markThreadRead } from "@/lib/messages-db";
+import { canRate } from "@/lib/ratings";
 
 /** Warum hier nicht geschrieben werden darf - je nach Stand der Anfrage. */
 const GESPERRT: Record<string, string> = {
@@ -35,6 +38,7 @@ export default async function ThreadPage({ params }: { params: Promise<{ id: str
   const { request, role } = thread;
   const gegenueber = counterpart(thread);
   const darfSchreiben = canWrite(request.status);
+  const darfBewerten = canRate(request.status, role === "requester");
 
   return (
     <div className="space-y-6">
@@ -95,6 +99,43 @@ export default async function ThreadPage({ params }: { params: Promise<{ id: str
           }))}
         />
       </Card>
+
+      {darfBewerten || request.rating ? (
+        <Card>
+          <h2 className="mb-1 font-medium text-slate-900">
+            {role === "requester" ? "Deine Rueckmeldung" : "Rueckmeldung von " + gegenueber.name}
+          </h2>
+
+          {role === "requester" ? (
+            <>
+              <p className="mb-3 text-sm text-slate-600">
+                Wie gut hat {gegenueber.name} erklaert? Das sehen andere, die spaeter nach
+                Nachhilfe suchen.
+              </p>
+              <RatingForm
+                requestId={request.id}
+                tutorName={gegenueber.name}
+                initialStars={request.rating?.stars ?? null}
+                initialComment={request.rating?.comment ?? null}
+              />
+            </>
+          ) : request.rating ? (
+            <div className="space-y-2">
+              <Stars value={request.rating.stars} />
+              {request.rating.comment ? (
+                <p className="whitespace-pre-wrap text-slate-700">
+                  &bdquo;{request.rating.comment}&ldquo;
+                </p>
+              ) : (
+                <p className="text-sm text-slate-500">Ohne Kommentar.</p>
+              )}
+              <p className="text-xs text-slate-500">
+                von {gegenueber.name}, {formatDate(request.rating.updatedAt)}
+              </p>
+            </div>
+          ) : null}
+        </Card>
+      ) : null}
 
       {darfSchreiben ? (
         <p className="text-sm text-slate-500">

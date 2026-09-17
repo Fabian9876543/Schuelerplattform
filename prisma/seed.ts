@@ -44,6 +44,7 @@ async function main() {
   // Auch die Anmeldeversuche: Sonst bleibt nach dem Seeding eine Sperre aus
   // einem frueheren Lauf bestehen, und die Beispielkonten kommen nicht herein.
   await prisma.loginAttempt.deleteMany();
+  await prisma.rating.deleteMany();
   await prisma.message.deleteMany();
   await prisma.tutoringRequest.deleteMany();
   await prisma.studyTask.deleteMany();
@@ -307,8 +308,7 @@ async function main() {
     },
   });
 
-  // Eine bereits angenommene Anfrage - dadurch wird Miras Angebot beim
-  // Gleichstand nach hinten sortiert, das laesst sich in der Suche nachsehen.
+  // Eine bereits angenommene Anfrage, spaeter mit Verlauf und Bewertung.
   const angenommen = await prisma.tutoringRequest.create({
     data: {
       requesterId: users["tom@schule.de"],
@@ -344,10 +344,72 @@ async function main() {
     },
   });
 
+  // --- Bewertungen ---------------------------------------------------------
+  //
+  // Damit sich die Wirkung in der Suche nachsehen laesst: Mira ist zweimal
+  // gut bewertet, Tom einmal maessig, Jonas noch gar nicht. In der Suche
+  // nach Mathematik steht Mira dadurch vor Jonas - bei sonst gleicher
+  // Passung. Jonas rutscht dabei nicht nach unten, weil ihm eine Bewertung
+  // fehlt, sondern weil Mira eine hat.
+
+  await prisma.rating.create({
+    data: {
+      requestId: angenommen.id,
+      tutorOfferId: offerIds["mira@schule.de:Mathematik"],
+      raterId: users["tom@schule.de"],
+      stars: 5,
+      comment:
+        "Mira hat sich zweimal Zeit genommen und so lange nachgefragt, bis ich es selbst erklaeren konnte.",
+    },
+  });
+
+  const zweiteZusage = await prisma.tutoringRequest.create({
+    data: {
+      requesterId: users["aylin@schule.de"],
+      tutorOfferId: offerIds["mira@schule.de:Mathematik"],
+      topic: "Kurvendiskussion",
+      message: "Hi Mira, ich haenge bei den Wendepunkten. Schaffst du das vor der Klausur?",
+      status: "accepted",
+      responseMessage: "Ja, komm einfach Freitag in der Freistunde.",
+      respondedAt: new Date(),
+    },
+  });
+  await prisma.rating.create({
+    data: {
+      requestId: zweiteZusage.id,
+      tutorOfferId: offerIds["mira@schule.de:Mathematik"],
+      raterId: users["aylin@schule.de"],
+      stars: 4,
+      comment: "Gut erklaert, nur ging es mir stellenweise etwas schnell.",
+    },
+  });
+
+  const dritteZusage = await prisma.tutoringRequest.create({
+    data: {
+      requesterId: users["paul@schule.de"],
+      tutorOfferId: offerIds["tom@schule.de:Mathematik"],
+      topic: "Gleichungen",
+      message: "Hallo Tom, kriegst du mir das Umstellen von Gleichungen beigebracht?",
+      status: "accepted",
+      responseMessage: "Klar, machen wir.",
+      respondedAt: new Date(),
+    },
+  });
+  await prisma.rating.create({
+    data: {
+      requestId: dritteZusage.id,
+      tutorOfferId: offerIds["tom@schule.de:Mathematik"],
+      raterId: users["paul@schule.de"],
+      stars: 2,
+      comment: "Tom hat mir die Aufgaben vorgerechnet, verstanden habe ich es danach trotzdem nicht.",
+    },
+  });
+
   console.log("Fertig: 2 Schulen (Beitrittscodes GOETHE und HUMBOLDT),");
   console.log(`${people.length} Konten, ${offers.length} Nachhilfe-Angebote,`);
   console.log(`1 ausgewertetes Lernvorhaben mit ${plan.length} Lernaufgaben,`);
-  console.log("1 angenommene Anfrage mit Nachrichtenverlauf (Tom und Mira).");
+  console.log("3 angenommene Anfragen, davon eine mit Nachrichtenverlauf,");
+  console.log("3 Bewertungen (Mira 5 und 4, Tom 2, Jonas noch keine).");
   console.log(`Passwort fuer alle Konten: ${PASSWORD}`);
 }
 

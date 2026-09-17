@@ -1,4 +1,5 @@
 import { normalizeTopic } from "@/lib/constants";
+import { ratingBonus } from "@/lib/ratings";
 
 /**
  * Bewertet Nachhilfe-Angebote gegen ein konkretes Defizit.
@@ -17,6 +18,8 @@ export interface TutorCandidate {
   topics: { name: string; normalized: string }[];
   /** bereits angenommene Anfragen - verteilt die Last bei Gleichstand */
   acceptedRequests: number;
+  /** Rueckmeldungen zu diesem Angebot; fehlt, solange es keine gibt */
+  rating?: { average: number; count: number };
 }
 
 export interface MatchQuery {
@@ -80,6 +83,17 @@ export function scoreCandidate(candidate: TutorCandidate, query: MatchQuery): Ma
     }
   } else {
     reasons.push(`Unterrichtet nur bis Klasse ${candidate.maxGradeLevel}`);
+  }
+
+  // Bewertungen verschieben die Reihenfolge nur leicht (hoechstens ein Punkt,
+  // ein Thementreffer bringt drei). Wer das gesuchte Thema anbietet, steht
+  // also weiter oben als wer nur gut bewertet ist.
+  //
+  // Absichtlich ohne Eintrag in `reasons`: Die Sterne stehen in der Liste
+  // ohnehin neben dem Namen, ein zweites Mal als Begruendung waere nur
+  // doppelt.
+  if (candidate.rating) {
+    score += ratingBonus(candidate.rating.average, candidate.rating.count);
   }
 
   return { candidate, score, reasons, matchedTopics };

@@ -2,6 +2,7 @@ import Link from "next/link";
 
 import { RequestActions } from "@/app/anfragen/request-actions";
 import { StatusBadge } from "@/app/anfragen/status-badge";
+import { Stars } from "@/components/stars";
 import { Card, EmptyState, PageTitle } from "@/components/ui";
 import { requireUser } from "@/lib/auth";
 import { prisma } from "@/lib/db";
@@ -30,6 +31,27 @@ function ThreadLink({ id, ungelesen }: { id: string; ungelesen: number }) {
   );
 }
 
+/**
+ * Was aus der Bewertung geworden ist. Wer angefragt hat, wird einmal daran
+ * erinnert; wer Nachhilfe gegeben hat, sieht das Ergebnis. Ein Anmahnen in
+ * die andere Richtung gibt es nicht - ob jemand bewertet, ist seine Sache.
+ */
+function RatingNote({ stars, role }: { stars: number | null; role: "requester" | "tutor" }) {
+  if (stars !== null) {
+    return (
+      <div className="mt-2">
+        <Stars value={stars} />
+      </div>
+    );
+  }
+  if (role !== "requester") return null;
+  return (
+    <p className="mt-2 text-xs text-slate-500">
+      Noch nicht bewertet - deine Rueckmeldung hilft anderen bei der Suche.
+    </p>
+  );
+}
+
 export default async function RequestsPage() {
   const user = await requireUser();
 
@@ -39,6 +61,7 @@ export default async function RequestsPage() {
       include: {
         requester: { select: { name: true, gradeLevel: true } },
         tutorOffer: { select: { subject: true } },
+        rating: { select: { stars: true } },
       },
       orderBy: [{ status: "asc" }, { createdAt: "desc" }],
     }),
@@ -46,6 +69,7 @@ export default async function RequestsPage() {
       where: { requesterId: user.id },
       include: {
         tutorOffer: { select: { subject: true, user: { select: { name: true } } } },
+        rating: { select: { stars: true } },
       },
       orderBy: { createdAt: "desc" },
     }),
@@ -86,7 +110,10 @@ export default async function RequestsPage() {
                     <p className="mt-2 text-slate-700">{request.message}</p>
 
                     {request.status === "accepted" ? (
-                      <ThreadLink id={request.id} ungelesen={ungelesen.get(request.id) ?? 0} />
+                      <>
+                        <ThreadLink id={request.id} ungelesen={ungelesen.get(request.id) ?? 0} />
+                        <RatingNote stars={request.rating?.stars ?? null} role="tutor" />
+                      </>
                     ) : null}
                   </div>
 
@@ -129,7 +156,10 @@ export default async function RequestsPage() {
                     ) : null}
 
                     {request.status === "accepted" ? (
-                      <ThreadLink id={request.id} ungelesen={ungelesen.get(request.id) ?? 0} />
+                      <>
+                        <ThreadLink id={request.id} ungelesen={ungelesen.get(request.id) ?? 0} />
+                        <RatingNote stars={request.rating?.stars ?? null} role="requester" />
+                      </>
                     ) : null}
                   </div>
 

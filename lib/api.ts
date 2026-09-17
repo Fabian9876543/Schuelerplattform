@@ -13,6 +13,16 @@ export function ok<T>(data: T, status = 200): NextResponse {
 }
 
 /**
+ * Zods eigene Meldungen sind englisch und nennen den technischen Typ. Sie
+ * duerfen nie in der Oberflaeche landen - eigene Meldungen dagegen schon.
+ */
+const ZOD_STANDARD = /^(Invalid input|Invalid option|Invalid key|Invalid value|Too small|Too big|Unrecognized key|Expected)/;
+
+function istZodStandardmeldung(message: string): boolean {
+  return ZOD_STANDARD.test(message);
+}
+
+/**
  * Wandelt Zod-Fehler in eine lesbare deutsche Meldung.
  *
  * Ohne den technischen Feldpfad: "answers.0.answerText: Deine Antwort ist zu
@@ -26,19 +36,21 @@ export function fromZodError(error: ZodError): NextResponse {
   }
   if (!first) return fail("Ungueltige Eingabe.");
 
-  // Fehlt ein Feld ganz, meldet Zod das auf Englisch und technisch ("expected
-  // string, received undefined") - die eigene Meldung am Feld greift dann
-  // nicht, weil sie erst fuer vorhandene Werte gilt. Hier deutsch abfangen.
-  if (first.code === "invalid_type" && first.input === undefined) {
-    const feld = first.path.at(-1);
-    return fail(
-      typeof feld === "string"
-        ? `Es fehlt eine Angabe: ${feld}.`
-        : "Es fehlt eine Angabe.",
-    );
-  }
+  // Eigene Meldungen gehen unveraendert hinaus - sie sind fuer den Fall
+  // geschrieben, der hier gerade eingetreten ist.
+  if (!istZodStandardmeldung(first.message)) return fail(first.message);
 
-  return fail(first.message);
+  // Bleibt die Standardmeldung, ist sie englisch und technisch ("expected
+  // number, received undefined"). Die wird hier uebersetzt. Erkennbar ist der
+  // fehlende Wert nur an ihr: Zod 4 fuellt `issue.input` nicht, ein Vergleich
+  // darauf wuerde jeden Typfehler als fehlende Angabe ausgeben.
+  const feld = first.path.at(-1);
+  const benennung = typeof feld === "string" ? `: ${feld}` : "";
+
+  if (first.message.endsWith("received undefined")) {
+    return fail(`Es fehlt eine Angabe${benennung}.`);
+  }
+  return fail(`Diese Angabe passt nicht${benennung}.`);
 }
 
 /**
