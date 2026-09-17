@@ -24,7 +24,9 @@ export async function searchTutors(options: {
       NOT: { userId: options.excludeUserId },
       // Lehrkraefte koennen keine Angebote anlegen; der Filter haelt die
       // Trefferliste auch dann sauber, wenn doch einmal eines entstuende.
-      user: { schoolId: options.schoolId, kind: "student" },
+      // Gesperrte Konten verschwinden aus der Suche, ohne dass jemand ihre
+      // Angebote einzeln abschalten muss.
+      user: { schoolId: options.schoolId, kind: "student", blockedAt: null },
       // Die Freigabe wirkt nur, solange die Schule sie verlangt. Schaltet sie
       // die Pflicht ab, sind alle Angebote wieder da - ohne dass jemand
       // hunderte Haken setzen muss.

@@ -28,6 +28,10 @@ export const LIMITS = {
   descriptionLength: 1_000,
   /** Kommentar zu einer Bewertung - ein Satz reicht, kein Aufsatz */
   commentLength: 500,
+  /** Meldungen je Nutzer und Tag - bremst das Zuschuetten mit Meldungen */
+  reportsPerDay: 10,
+  /** Was die meldende Person dazuschreibt */
+  reportNoteLength: 500,
 } as const;
 
 // --- reine Funktionen, ohne Datenbank ---------------------------------------

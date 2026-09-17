@@ -6,6 +6,7 @@ import { notFound, redirect } from "next/navigation";
 
 import type { UserKind } from "@/lib/constants";
 import { prisma } from "@/lib/db";
+import { isBlocked } from "@/lib/reports";
 import { isAdmin, takesPartInTutoring } from "@/lib/school";
 
 const COOKIE_NAME = "schuelerplattform_session";
@@ -75,6 +76,13 @@ export async function getCurrentUser(): Promise<SessionUser | null> {
   if (!session) return null;
   if (session.expiresAt < new Date()) {
     await prisma.session.deleteMany({ where: { token } });
+    return null;
+  }
+  // Gesperrte Konten kommen auch mit gueltigem Cookie nicht weiter. Beim
+  // Sperren werden die Sitzungen geloescht; das hier faengt den Fall ab,
+  // dass doch eine uebrig bleibt.
+  if (isBlocked(session.user)) {
+    await prisma.session.deleteMany({ where: { userId: session.user.id } });
     return null;
   }
 

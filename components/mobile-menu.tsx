@@ -16,7 +16,15 @@ import { describeGrade } from "@/lib/school";
  * aus. Das JavaScript sorgt nur dafür, dass sich das Menü nach einer
  * Navigation wieder schliesst; ohne JavaScript erledigt das der Seitenwechsel.
  */
-export function MobileMenu({ user, unread = 0 }: { user: SessionUser; unread?: number }) {
+export function MobileMenu({
+  user,
+  unread = 0,
+  offeneMeldungen = 0,
+}: {
+  user: SessionUser;
+  unread?: number;
+  offeneMeldungen?: number;
+}) {
   const ref = useRef<HTMLDetailsElement>(null);
   const pathname = usePathname();
 
@@ -56,6 +64,11 @@ export function MobileMenu({ user, unread = 0 }: { user: SessionUser; unread?: n
               {"showsUnread" in item && unread > 0 ? (
                 <span className="ml-2 rounded-full bg-brand-600 px-1.5 py-0.5 text-xs font-medium text-white">
                   {unread}
+                </span>
+              ) : null}
+              {"showsReports" in item && offeneMeldungen > 0 ? (
+                <span className="ml-2 rounded-full bg-brand-600 px-1.5 py-0.5 text-xs font-medium text-white">
+                  {offeneMeldungen}
                 </span>
               ) : null}
             </Link>

@@ -372,6 +372,60 @@ Die Datenbank hält beides auseinander: Ein Schülerkonto ohne Klasse und eine
 Lehrkraft mit Klasse werden von einem `CHECK` abgewiesen, egal über welchen Weg
 sie hereinkämen.
 
+## Meldungen
+
+Wer etwas Unangemessenes sieht, meldet es: ein **Nachhilfe-Angebot**, eine
+**Nachricht** oder eine **Bewertung**. Gemeldet wird immer ein einzelner
+Inhalt, nie eine Person – eine Meldung ohne konkreten Anlass kann niemand
+prüfen. Die Schulverwaltung bearbeitet sie unter `/schule`.
+
+### Ausschnitt statt Generalschlüssel
+
+„Verwalten heißt nicht mitlesen" gilt weiter. Eine Meldung muss das ein Stück
+weit durchbrechen – sonst kann niemand prüfen –, und genau so weit tut sie es:
+Die Meldung **kopiert den Wortlaut** in sich hinein (`Report.snapshot`). Die
+Verwaltung sieht den gemeldeten Satz, nicht den Verlauf drumherum.
+
+Nebenbei löst das ein zweites Problem: `targetId` hat bewusst **keinen
+Fremdschlüssel**. Löscht jemand seinen Beitrag, bleibt die Meldung samt Beleg
+bestehen – sonst ließe sich eine Meldung durch Löschen verschwinden lassen.
+
+### Wer was darf
+
+| | Melden darf | Warum diese Grenze |
+|---|---|---|
+| Angebot | jedes Schülerkonto derselben Schule | es steht in der Suche |
+| Nachricht | nur der Empfänger | niemand sonst darf den Verlauf kennen |
+| Bewertung | nur der Bewertete | er ist der Betroffene |
+
+Die Prüfungen sind dieselben wie beim Lesen (`resolveTarget` in
+`lib/reports-db.ts`): Über die Meldefunktion kommt niemand an Inhalte, die ihn
+sonst nichts angehen. Den eigenen Beitrag zu melden geht nicht.
+
+### Gegen Missbrauch der Meldefunktion
+
+- **Eine Meldung je Person und Inhalt** (`UNIQUE`), sonst schüttet jemand einen
+  Mitschüler mit fünfzig Meldungen zu.
+- **10 Meldungen pro Tag und Konto.**
+- **Kein automatisches Ausblenden** ab X Meldungen. Das wäre die Einladung,
+  dass drei Freunde einen unliebsamen Mitschüler wegmelden. Ein Mensch
+  entscheidet; mehrfach gemeldete Inhalte stehen einfach mehrfach in der Liste.
+- Die meldende Person **erfährt den Ausgang nicht**. Alles andere verriete
+  etwas über die gemeldete Person. Die gemeldete Person erfährt umgekehrt
+  nicht, wer gemeldet hat – sonst meldet niemand mehr.
+
+### Sperren
+
+Als Folge einer Meldung kann ein Zugang gesperrt werden: keine Anmeldung mehr,
+laufende Sitzungen enden sofort, die Angebote verschwinden aus der Suche.
+
+**Sperren darf nur, wer Lehrkraft *und* Verwalter ist.** Eine Schülerin kann
+die Schule mitverwalten – Angebote freigeben, Fächer pflegen, Meldungen
+bearbeiten –, aber einer Mitschülerin den Zugang abzudrehen ist ein Machtmittel
+unter Gleichaltrigen. Verwalter lassen sich außerdem nicht sperren: erst aus
+der Verwaltung nehmen, dann sperren. Sonst könnten sich zwei Verwalter
+gegenseitig aussperren.
+
 ## Kalender
 
 `/kalender` zeigt einen Monat mit allen eigenen Klausuren und den Lernaufgaben
@@ -484,6 +538,7 @@ der nur beliebt ist.**
 | Freitextantwort | 5 000 Zeichen | die Antwort geht in den KI-Prompt, jedes Zeichen kostet |
 | Nachricht | 2 000 Zeichen | begrenzt, was eine einzelne Anfrage in der Datenbank ablegt |
 | Kommentar zur Bewertung | 500 Zeichen | ein Satz reicht, kein Aufsatz |
+| Meldungen je Nutzer und Tag | 10 | bremst das Zuschütten mit Meldungen |
 
 Die Anmeldesperre greift **auch beim richtigen Passwort** – sonst könnte man
 weiter durchprobieren und beim Treffer trotzdem hereinkommen. Gezählt wird nach
@@ -515,6 +570,8 @@ lib/
   appointments-db.ts die Abfragen dazu, samt Doppelbelegung
   school.ts          Rollen, Fächerliste, Sichtbarkeit von Angeboten
   school-db.ts       die Abfragen der Verwaltung - bewusst ohne Inhalte
+  reports.ts         Meldungen: Gründe, wer sperren darf, Textausschnitt
+  reports-db.ts      die Abfragen dazu, samt Zugangsprüfung je Inhaltsart
   auth.ts            E-Mail/Passwort-Anmeldung mit Session-Cookie
 prisma/              Datenmodell, Migrationen, Beispieldaten
 tests/               Vitest-Tests für die Logik
@@ -526,10 +583,11 @@ Schreibzugriffe laufen über Route Handler mit Zod-Validierung.
 ## Tests
 
 ```bash
-npm test         # 115 Tests: Terminverteilung, Matching, Fallback, KI-Schemas,
+npm test         # 126 Tests: Terminverteilung, Matching, Fallback, KI-Schemas,
                  #             Umplanung, Grenzwerte, Zugang zu Verläufen,
                  #             Gewicht der Bewertungen, Kalenderrechnung,
-                 #             Terminregeln, Rollen, Fächerlisten, Beitrittscodes
+                 #             Terminregeln, Rollen, Fächerlisten, Beitrittscodes,
+                 #             Melde- und Sperrregeln
 npm run build    # Typprüfung und Produktionsbuild
 ```
 
@@ -546,7 +604,8 @@ Die Tests brauchen keinen API-Schlüssel.
   durch ist.
 - **Status- und Typfelder** sind echte `enum`-Typen in der Datenbank
   (`AssessmentStatus`, `QuestionKind`, `EvaluationSource`, `RequestStatus`,
-  `MasteryLevel`, `AppointmentStatus`, `UserKind`).
+  `MasteryLevel`, `AppointmentStatus`, `UserKind`, `ReportTargetType`,
+  `ReportReason`, `ReportStatus`).
   Die Datenbank lässt keinen ungültigen Wert zu, Prisma erzeugt daraus die
   TypeScript-Typen, und `lib/constants.ts` leitet die Zod-Schemas davon ab –
   eine Quelle statt zwei.
@@ -559,6 +618,7 @@ Die Tests brauchen keinen API-Schlüssel.
 ## Was als Nächstes sinnvoll wäre
 
 - Rückmeldung nach der Klausur, um die Treffsicherheit der Auswertung zu prüfen
-- Rückmeldung an die Schule, wenn jemand ein Angebot meldet
 - Klassen und Kurse, damit die Schule nicht nur Fächer, sondern auch Gruppen
   abbilden kann
+- Eine Übersicht für die Schule, wie oft dieselbe Person gemeldet wurde – heute
+  steht jede Meldung für sich

@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 
+import { ReportDialog } from "@/components/report-dialog";
 import { ErrorNote } from "@/components/ui";
 import { formatDateTime } from "@/lib/format";
 import { LIMITS } from "@/lib/limits";
@@ -113,6 +114,9 @@ export function MessageThread({
                   {message.mine ? "Du" : message.senderName} &middot;{" "}
                   {formatDateTime(new Date(message.createdAt))}
                 </p>
+                {message.mine ? null : (
+                  <ReportDialog targetType="message" targetId={message.id} was="Diese Nachricht" />
+                )}
               </div>
             </div>
           ))

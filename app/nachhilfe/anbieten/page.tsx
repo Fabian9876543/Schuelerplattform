@@ -1,4 +1,5 @@
 import { OfferForm } from "@/app/nachhilfe/anbieten/offer-form";
+import { ReportDialog } from "@/components/report-dialog";
 import { Stars } from "@/components/stars";
 import { Card, PageTitle } from "@/components/ui";
 import { requireStudent } from "@/lib/auth";
@@ -108,6 +109,13 @@ export default async function OfferPage() {
                   &bdquo;{rueckmeldung.comment}&ldquo;
                 </p>
               ) : null}
+              <div className="mt-2">
+                <ReportDialog
+                  targetType="rating"
+                  targetId={rueckmeldung.id}
+                  was="Diese Bewertung"
+                />
+              </div>
             </Card>
           ))}
         </div>

@@ -5,11 +5,11 @@ import { sichtbareNavItems } from "@/components/nav-items";
 import type { SessionUser } from "@/lib/auth";
 import { describeGrade } from "@/lib/school";
 
-/** Die Zahl ungelesener Nachrichten neben dem Navigationspunkt. */
+/** Die Zahl offener Dinge neben einem Navigationspunkt. */
 function UnreadBadge({ count }: { count: number }) {
   return (
     <span
-      aria-label={`${count} ungelesene Nachrichten`}
+      aria-label={`${count} offen`}
       className="ml-1.5 rounded-full bg-brand-600 px-1.5 py-0.5 text-xs font-medium text-white"
     >
       {count}
@@ -21,7 +21,15 @@ function UnreadBadge({ count }: { count: number }) {
  * Auf breiten Displays steht alles in einer Zeile. Auf dem Handy bleibt nur
  * Logo und Menü-Knopf stehen; die Navigation klappt darunter auf (MobileMenu).
  */
-export function SiteHeader({ user, unread = 0 }: { user: SessionUser | null; unread?: number }) {
+export function SiteHeader({
+  user,
+  unread = 0,
+  offeneMeldungen = 0,
+}: {
+  user: SessionUser | null;
+  unread?: number;
+  offeneMeldungen?: number;
+}) {
   return (
     <header className="relative border-b border-slate-200 bg-white">
       <div className="mx-auto flex w-full max-w-5xl flex-wrap items-center gap-x-6 gap-y-2 px-4 py-3">
@@ -36,6 +44,9 @@ export function SiteHeader({ user, unread = 0 }: { user: SessionUser | null; unr
                 <Link key={item.href} href={item.href} className="hover:text-brand-600">
                   {item.label}
                   {"showsUnread" in item && unread > 0 ? <UnreadBadge count={unread} /> : null}
+                  {"showsReports" in item && offeneMeldungen > 0 ? (
+                    <UnreadBadge count={offeneMeldungen} />
+                  ) : null}
                 </Link>
               ))}
             </nav>
@@ -51,7 +62,7 @@ export function SiteHeader({ user, unread = 0 }: { user: SessionUser | null; unr
               </form>
             </div>
 
-            <MobileMenu user={user} unread={unread} />
+            <MobileMenu user={user} unread={unread} offeneMeldungen={offeneMeldungen} />
           </>
         ) : (
           <div className="ml-auto flex items-center gap-4 text-sm">

@@ -41,6 +41,9 @@ export {
   AssessmentStatus,
   EvaluationSource,
   QuestionKind,
+  ReportReason,
+  ReportStatus,
+  ReportTargetType,
   RequestStatus,
   UserKind,
 } from "@/lib/generated/prisma/enums";
@@ -50,6 +53,9 @@ export const assessmentStatusSchema = z.enum(PrismaEnums.AssessmentStatus);
 export const questionKindSchema = z.enum(PrismaEnums.QuestionKind);
 export const requestStatusSchema = z.enum(PrismaEnums.RequestStatus);
 export const userKindSchema = z.enum(PrismaEnums.UserKind);
+export const reportReasonSchema = z.enum(PrismaEnums.ReportReason);
+export const reportStatusSchema = z.enum(PrismaEnums.ReportStatus);
+export const reportTargetTypeSchema = z.enum(PrismaEnums.ReportTargetType);
 export const evaluationSourceSchema = z.enum(PrismaEnums.EvaluationSource);
 
 /** Schweregrad eines Defizits */

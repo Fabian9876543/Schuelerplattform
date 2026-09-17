@@ -1,4 +1,5 @@
 import { RequestDialog } from "@/app/nachhilfe/request-dialog";
+import { ReportDialog } from "@/components/report-dialog";
 import { Stars } from "@/components/stars";
 import { Card, EmptyState, PageTitle } from "@/components/ui";
 import { requireStudent } from "@/lib/auth";
@@ -148,12 +149,19 @@ export default async function TutorSearchPage({
                   </ul>
                 </div>
 
-                <RequestDialog
-                  offerId={match.candidate.offerId}
-                  tutorName={match.candidate.userName}
-                  topic={topic}
-                  deficitId={deficitId}
-                />
+                <div className="flex flex-col items-end gap-1">
+                  <RequestDialog
+                    offerId={match.candidate.offerId}
+                    tutorName={match.candidate.userName}
+                    topic={topic}
+                    deficitId={deficitId}
+                  />
+                  <ReportDialog
+                    targetType="offer"
+                    targetId={match.candidate.offerId}
+                    was="Dieses Angebot"
+                  />
+                </div>
               </div>
             </Card>
           ))}

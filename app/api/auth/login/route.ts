@@ -4,6 +4,7 @@ import { fail, fromZodError, ok } from "@/lib/api";
 import { createSession, verifyPassword } from "@/lib/auth";
 import { prisma } from "@/lib/db";
 import { LIMITS, minutesUntilUnlocked } from "@/lib/limits";
+import { isBlocked } from "@/lib/reports";
 import {
   clearLoginAttempts,
   recentLoginAttempts,
@@ -45,6 +46,16 @@ export async function POST(request: Request) {
   if (!(await verifyPassword(password, user.passwordHash))) {
     await recordLoginAttempt(email);
     return invalid;
+  }
+
+  // Erst nach dem richtigen Passwort: Sonst liesse sich ueber die Meldung
+  // herausfinden, welche Konten es gibt und welche gesperrt sind.
+  if (isBlocked(user)) {
+    await clearLoginAttempts(email);
+    return fail(
+      "Dieser Zugang wurde von der Schule gesperrt. Wende dich an eine Lehrkraft.",
+      403,
+    );
   }
 
   await clearLoginAttempts(email);

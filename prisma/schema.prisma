@@ -55,6 +55,28 @@ enum UserKind {
   teacher
 }
 
+/// Was gemeldet wurde.
+enum ReportTargetType {
+  offer
+  message
+  rating
+}
+
+/// Warum gemeldet wurde.
+enum ReportReason {
+  insult
+  inappropriate
+  spam
+  other
+}
+
+/// Stand einer Meldung.
+enum ReportStatus {
+  open
+  resolved
+  rejected
+}
+
 /// Stand eines vereinbarten Termins.
 enum AppointmentStatus {
   /// vorgeschlagen, die andere Seite hat noch nicht zugesagt
@@ -91,6 +113,7 @@ model School {
 
   users    User[]
   subjects SchoolSubject[]
+  reports  Report[]
 }
 
 /// Ein Fach, das diese Schule zulaesst.
@@ -123,6 +146,11 @@ model User {
   /// Darf die eigene Schule verwalten. Unabhaengig davon, ob Schueler oder
   /// Lehrkraft - beides kommt vor.
   isAdmin      Boolean  @default(false)
+  /// Gesperrt von der Schule: Anmeldung nicht mehr moeglich, Angebote
+  /// verschwinden aus der Suche. Sperren duerfen nur Lehrkraefte mit
+  /// Verwaltungsrechten - unter Mitschuelern waere das ein Machtmittel.
+  blockedAt    DateTime?
+  blockedById  String?
   createdAt    DateTime @default(now())
 
   school            School            @relation(fields: [schoolId], references: [id])
@@ -134,6 +162,11 @@ model User {
   givenRatings      Rating[]          @relation("RatingsGiven")
   proposedMeetings  Appointment[]     @relation("AppointmentsProposed")
   approvedOffers    TutorOffer[]      @relation("OffersApproved")
+  filedReports      Report[]          @relation("ReportsFiled")
+  reportsAbout      Report[]          @relation("ReportsAbout")
+  handledReports    Report[]          @relation("ReportsHandled")
+  blockedBy         User?             @relation("Blocks", fields: [blockedById], references: [id], onDelete: SetNull)
+  blockedAccounts   User[]            @relation("Blocks")
 
   @@index([schoolId])
 }
@@ -449,6 +482,53 @@ model Appointment {
   @@index([requestId, startsAt])
   @@index([startsAt])
   @@index([proposedById])
+}
+
+/// Eine Meldung ueber einen Inhalt.
+///
+/// Gemeldet wird **Inhalt, keine Person**: eine Meldung ohne konkreten Anlass
+/// kann niemand pruefen.
+///
+/// Zwei Entscheidungen stecken im Aufbau:
+///
+/// - `snapshot` haelt den Wortlaut zum Zeitpunkt der Meldung fest. Die
+///   Verwaltung sieht damit genau den gemeldeten Ausschnitt und nicht den
+///   Verlauf drumherum - "Verwalten heisst nicht mitlesen" bleibt gueltig,
+///   soweit es geht.
+/// - `targetId` hat bewusst **keinen Fremdschluessel**. Sonst naehme eine
+///   geloeschte Nachricht die Meldung mit sich - genau das, was jemand
+///   erreichen wollte, der etwas Unzulaessiges geschrieben hat.
+model Report {
+  id         String @id @default(cuid())
+  /// Meldungen bleiben an der Schulgrenze, wie alles andere auch.
+  schoolId   String
+  reporterId String
+  /// wer den gemeldeten Inhalt verfasst hat
+  authorId   String
+  targetType ReportTargetType
+  targetId   String
+  snapshot   String
+  reason     ReportReason
+  /// was die meldende Person dazuschreibt
+  note       String?
+
+  status      ReportStatus @default(open)
+  handledById String?
+  handledAt   DateTime?
+  /// Notiz der Verwaltung beim Abschliessen
+  resolution  String?
+  createdAt   DateTime @default(now())
+
+  school    School @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+  reporter  User   @relation("ReportsFiled", fields: [reporterId], references: [id], onDelete: Cascade)
+  author    User   @relation("ReportsAbout", fields: [authorId], references: [id], onDelete: Cascade)
+  handledBy User?  @relation("ReportsHandled", fields: [handledById], references: [id], onDelete: SetNull)
+
+  /// Eine Meldung je Person und Inhalt - sonst laesst sich jemand mit
+  /// fuenfzig Meldungen zuschuetten.
+  @@unique([reporterId, targetType, targetId])
+  @@index([schoolId, status])
+  @@index([authorId])
 }
 
 /// Fehlgeschlagene Anmeldeversuche - bremst das Durchprobieren von Passwoertern.

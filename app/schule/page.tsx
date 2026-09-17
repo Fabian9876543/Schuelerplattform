@@ -1,12 +1,15 @@
 import {
   ApprovalToggle,
+  BlockButton,
   MemberRole,
   OfferApproval,
+  ReportActions,
   SubjectPicker,
 } from "@/app/schule/school-controls";
 import { Card, PageTitle } from "@/components/ui";
 import { requireAdmin } from "@/lib/auth";
 import { formatDate } from "@/lib/format";
+import { canBlockAccounts, describeReason, describeTarget } from "@/lib/reports";
 import { describeGrade } from "@/lib/school";
 import { schoolOverview } from "@/lib/school-db";
 
@@ -21,12 +24,16 @@ import { schoolOverview } from "@/lib/school-db";
  */
 export default async function SchoolPage() {
   const user = await requireAdmin();
-  const { school, members, offers, faecher, anfragen, termine } = await schoolOverview(
+  const { school, members, offers, faecher, reports, anfragen, termine } = await schoolOverview(
     user.schoolId,
   );
 
   const offen = offers.filter((offer) => !offer.approved);
   const freigegeben = offers.filter((offer) => offer.approved);
+  const offeneMeldungen = reports.filter((report) => report.status === "open");
+  // Sperren duerfen nur Lehrkraefte - eine Schuelerin mit Verwaltungsrechten
+  // sieht den Knopf gar nicht erst.
+  const darfSperren = canBlockAccounts(user);
 
   return (
     <div className="space-y-6">
@@ -144,6 +151,76 @@ export default async function SchoolPage() {
         ) : null}
       </section>
 
+      <section>
+        <h2 className="mb-1 font-medium text-slate-900">
+          Meldungen
+          {offeneMeldungen.length > 0 ? (
+            <span className="ml-2 rounded-full bg-amber-100 px-2 py-0.5 text-xs font-medium text-amber-800">
+              {offeneMeldungen.length} offen
+            </span>
+          ) : null}
+        </h2>
+        <p className="mb-3 text-sm text-slate-600">
+          Gemeldet wird immer ein einzelner Inhalt. Ihr seht den Wortlaut zum Zeitpunkt der
+          Meldung - nicht den Verlauf drumherum.
+        </p>
+
+        {reports.length === 0 ? (
+          <Card>
+            <p className="text-sm text-slate-500">Es liegt nichts vor.</p>
+          </Card>
+        ) : (
+          <div className="space-y-3">
+            {reports.map((report) => (
+              <Card key={report.id}>
+                <div className="flex flex-wrap items-center gap-2">
+                  <span className="rounded-full bg-slate-100 px-2.5 py-0.5 text-xs text-slate-700">
+                    {describeTarget(report.targetType)}
+                  </span>
+                  <span className="text-sm font-medium text-slate-800">
+                    {describeReason(report.reason)}
+                  </span>
+                  {report.status === "open" ? (
+                    <span className="rounded-full bg-amber-50 px-2.5 py-0.5 text-xs text-amber-700">
+                      offen
+                    </span>
+                  ) : (
+                    <span className="rounded-full bg-slate-100 px-2.5 py-0.5 text-xs text-slate-600">
+                      {report.status === "resolved" ? "erledigt" : "unbegruendet"}
+                    </span>
+                  )}
+                  <span className="text-xs text-slate-500">{formatDate(report.createdAt)}</span>
+                </div>
+
+                <p className="mt-2 text-sm text-slate-500">
+                  von {report.author.name}, gemeldet von {report.reporter.name}
+                </p>
+
+                <blockquote className="mt-2 whitespace-pre-wrap rounded-md bg-slate-50 px-3 py-2 text-sm text-slate-800">
+                  {report.snapshot}
+                </blockquote>
+
+                {report.note ? (
+                  <p className="mt-2 text-sm text-slate-700">
+                    Dazu geschrieben: &bdquo;{report.note}&ldquo;
+                  </p>
+                ) : null}
+
+                {report.status === "open" ? (
+                  <ReportActions reportId={report.id} />
+                ) : (
+                  <p className="mt-2 text-xs text-slate-500">
+                    {report.handledBy ? `Bearbeitet von ${report.handledBy.name}` : "Bearbeitet"}
+                    {report.handledAt ? ` am ${formatDate(report.handledAt)}` : ""}
+                    {report.resolution ? `: ${report.resolution}` : ""}
+                  </p>
+                )}
+              </Card>
+            ))}
+          </div>
+        )}
+      </section>
+
       <Card>
         <h2 className="mb-1 font-medium text-slate-900">Faecher</h2>
         <p className="mb-3 text-sm text-slate-600">
@@ -167,6 +244,11 @@ export default async function SchoolPage() {
                         Verwaltung
                       </span>
                     ) : null}
+                    {member.blockedAt ? (
+                      <span className="ml-2 rounded-full bg-red-50 px-2 py-0.5 text-xs font-medium text-red-700">
+                        gesperrt
+                      </span>
+                    ) : null}
                   </p>
                   <p className="text-sm text-slate-500">
                     {describeGrade(member)} &middot; {member.email} &middot; dabei seit{" "}
@@ -177,12 +259,21 @@ export default async function SchoolPage() {
                   </p>
                 </div>
 
-                <MemberRole
-                  userId={member.id}
-                  isAdmin={member.isAdmin}
-                  name={member.name}
-                  self={member.id === user.id}
-                />
+                <div className="flex flex-wrap items-center gap-2">
+                  {darfSperren && member.id !== user.id && !member.isAdmin ? (
+                    <BlockButton
+                      userId={member.id}
+                      name={member.name}
+                      blocked={member.blockedAt !== null}
+                    />
+                  ) : null}
+                  <MemberRole
+                    userId={member.id}
+                    isAdmin={member.isAdmin}
+                    name={member.name}
+                    self={member.id === user.id}
+                  />
+                </div>
               </div>
             </Card>
           ))}

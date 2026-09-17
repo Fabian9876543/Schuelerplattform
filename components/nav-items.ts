@@ -12,7 +12,7 @@ export const NAV_ITEMS = [
   // Punkt um, wandert der Zähler mit.
   { href: "/anfragen", label: "Anfragen", showsUnread: true, studentOnly: true },
   // Nur für Verwalter - egal ob Schülerin oder Lehrkraft.
-  { href: "/schule", label: "Schule", adminOnly: true },
+  { href: "/schule", label: "Schule", adminOnly: true, showsReports: true },
 ] as const;
 
 /**

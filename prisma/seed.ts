@@ -52,6 +52,7 @@ async function main() {
   // Auch die Anmeldeversuche: Sonst bleibt nach dem Seeding eine Sperre aus
   // einem frueheren Lauf bestehen, und die Beispielkonten kommen nicht herein.
   await prisma.loginAttempt.deleteMany();
+  await prisma.report.deleteMany();
   await prisma.schoolSubject.deleteMany();
   await prisma.appointment.deleteMany();
   await prisma.rating.deleteMany();
@@ -503,6 +504,47 @@ async function main() {
     },
   });
 
+  // --- Meldungen ------------------------------------------------------------
+  //
+  // Eine offene und eine bereits abgeschlossene - so sind beide Zustaende in
+  // der Verwaltung zu sehen. Gemeldet ist dasselbe Angebot von zwei
+  // verschiedenen Personen; ausgeblendet wird es dadurch nicht. Ueber eine
+  // Meldung entscheidet ein Mensch, nicht ein Zaehler.
+
+  const gemeldetesAngebot = offerIds["paul@schule.de:Informatik"];
+  const angebotstext =
+    "Informatik bis Klasse 9\nThemen: Python, Schleifen\n\n" +
+    "Ich helfe bei den ersten Schritten in Python: Schleifen, Listen, Funktionen.";
+
+  await prisma.report.create({
+    data: {
+      schoolId: goethe.id,
+      reporterId: users["jonas@schule.de"],
+      authorId: users["paul@schule.de"],
+      targetType: "offer",
+      targetId: gemeldetesAngebot,
+      snapshot: angebotstext,
+      reason: "other",
+      note: "Ich glaube nicht, dass das ernst gemeint ist - Paul ist selbst erst in Klasse 10.",
+    },
+  });
+
+  await prisma.report.create({
+    data: {
+      schoolId: goethe.id,
+      reporterId: users["aylin@schule.de"],
+      authorId: users["paul@schule.de"],
+      targetType: "offer",
+      targetId: gemeldetesAngebot,
+      snapshot: angebotstext,
+      reason: "spam",
+      status: "rejected",
+      handledById: users["baumann@schule.de"],
+      handledAt: new Date(),
+      resolution: "Nachgefragt - das Angebot ist ernst gemeint.",
+    },
+  });
+
   console.log("Fertig: 2 Schulen (Beitrittscodes GOETHE und HUMBOLDT),");
   console.log(`${people.length} Konten, ${offers.length} Nachhilfe-Angebote,`);
   console.log(`1 ausgewertetes Lernvorhaben mit ${plan.length} Lernaufgaben,`);
@@ -511,6 +553,7 @@ async function main() {
   console.log("2 Termine: einer zugesagt, einer wartet auf Antwort.");
   console.log("Verwaltung: Frau Baumann und Mira (Goethe), Sara (Humboldt).");
   console.log("Lehrercodes: GOETHE-LEHR und HUMBOLDT-LEHR.");
+  console.log("2 Meldungen zum selben Angebot: eine offen, eine abgeschlossen.");
   console.log(`Passwort fuer alle Konten: ${PASSWORD}`);
 }
 

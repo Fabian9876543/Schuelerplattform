@@ -5,6 +5,7 @@ import { useState } from "react";
 
 import { ErrorNote } from "@/components/ui";
 import { SUBJECTS, type Subject } from "@/lib/constants";
+import { LIMITS } from "@/lib/limits";
 
 /**
  * Die Schalter der Verwaltungsseite.
@@ -204,6 +205,88 @@ export function SubjectPicker({ gewaehlt }: { gewaehlt: string[] }) {
         ) : null}
         {unveraendert ? null : <span className="text-sm text-amber-700">noch nicht gespeichert</span>}
       </div>
+    </div>
+  );
+}
+
+/**
+ * Eine Meldung abschliessen.
+ *
+ * Zwei Wege: erledigt (es war etwas dran) oder unbegruendet. Beides mit einer
+ * kurzen Notiz, damit spaeter nachvollziehbar ist, was entschieden wurde.
+ */
+export function ReportActions({ reportId }: { reportId: string }) {
+  const { schicken, pending, fehler } = useAenderung();
+  const [notiz, setNotiz] = useState("");
+
+  const abschliessen = (status: "resolved" | "rejected") =>
+    schicken(`/api/reports/${reportId}`, { status, resolution: notiz.trim() || null }, reportId);
+
+  return (
+    <div className="mt-3 space-y-2 border-t border-slate-200 pt-3">
+      {fehler ? <ErrorNote>{fehler}</ErrorNote> : null}
+      <input
+        value={notiz}
+        onChange={(event) => setNotiz(event.target.value)}
+        maxLength={LIMITS.reportNoteLength}
+        placeholder="Notiz zur Entscheidung (freiwillig)"
+        className="w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 outline-none focus:border-brand-500"
+      />
+      <div className="flex flex-wrap gap-2">
+        <button
+          type="button"
+          disabled={pending !== null}
+          onClick={() => abschliessen("resolved")}
+          className="rounded-md bg-slate-800 px-3 py-1.5 text-sm font-medium text-white hover:bg-slate-900 disabled:opacity-60"
+        >
+          Erledigt
+        </button>
+        <button
+          type="button"
+          disabled={pending !== null}
+          onClick={() => abschliessen("rejected")}
+          className="rounded-md border border-slate-300 px-3 py-1.5 text-sm text-slate-700 hover:bg-slate-50 disabled:opacity-60"
+        >
+          Unbegruendet
+        </button>
+      </div>
+    </div>
+  );
+}
+
+/**
+ * Zugang sperren oder wieder freigeben.
+ *
+ * Steht nur Lehrkraeften zur Verfuegung - die Seite zeigt den Knopf sonst
+ * gar nicht, und der Server weist es zusaetzlich ab.
+ */
+export function BlockButton({
+  userId,
+  name,
+  blocked,
+}: {
+  userId: string;
+  name: string;
+  blocked: boolean;
+}) {
+  const { schicken, pending, fehler } = useAenderung();
+
+  return (
+    <div className="text-right">
+      {fehler ? <ErrorNote>{fehler}</ErrorNote> : null}
+      <button
+        type="button"
+        disabled={pending !== null}
+        onClick={() => schicken(`/api/school/members/${userId}`, { blocked: !blocked }, userId)}
+        title={blocked ? `${name} kann sich wieder anmelden` : `${name} kann sich nicht mehr anmelden`}
+        className={
+          blocked
+            ? "rounded-md border border-slate-300 px-3 py-1.5 text-sm text-slate-700 hover:bg-slate-50 disabled:opacity-60"
+            : "rounded-md border border-red-300 px-3 py-1.5 text-sm text-red-700 hover:bg-red-50 disabled:opacity-60"
+        }
+      >
+        {blocked ? "Sperre aufheben" : "Zugang sperren"}
+      </button>
     </div>
   );
 }
