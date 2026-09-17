@@ -1,7 +1,7 @@
 import Link from "next/link";
 
 import { MobileMenu } from "@/components/mobile-menu";
-import { NAV_ITEMS } from "@/components/nav-items";
+import { sichtbareNavItems } from "@/components/nav-items";
 import type { SessionUser } from "@/lib/auth";
 
 /** Die Zahl ungelesener Nachrichten neben dem Navigationspunkt. */
@@ -31,7 +31,7 @@ export function SiteHeader({ user, unread = 0 }: { user: SessionUser | null; unr
         {user ? (
           <>
             <nav className="hidden items-center gap-x-5 text-sm text-slate-600 md:flex">
-              {NAV_ITEMS.map((item) => (
+              {sichtbareNavItems(user).map((item) => (
                 <Link key={item.href} href={item.href} className="hover:text-brand-600">
                   {item.label}
                   {"showsUnread" in item && unread > 0 ? <UnreadBadge count={unread} /> : null}

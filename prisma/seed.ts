@@ -52,6 +52,7 @@ async function main() {
   // Auch die Anmeldeversuche: Sonst bleibt nach dem Seeding eine Sperre aus
   // einem frueheren Lauf bestehen, und die Beispielkonten kommen nicht herein.
   await prisma.loginAttempt.deleteMany();
+  await prisma.schoolSubject.deleteMany();
   await prisma.appointment.deleteMany();
   await prisma.rating.deleteMany();
   await prisma.message.deleteMany();
@@ -75,23 +76,36 @@ async function main() {
   // Zwei Schulen, damit sich vorfuehren laesst, dass die Suche an der
   // Schulgrenze endet: Die Humboldt-Schule hat ebenfalls Mathe-Nachhilfe -
   // fuer Konten des Goethe-Gymnasiums ist sie unsichtbar.
+  //
+  // Die beiden Schulen sind auch bei der Verwaltung verschieden eingestellt:
+  // Das Goethe-Gymnasium gibt Angebote frei, bevor sie sichtbar werden, die
+  // Humboldt-Schule nicht. Dafuer fuehrt Humboldt eine Faecherliste. So sind
+  // beide Moeglichkeiten vorfuehrbar.
   const goethe = await prisma.school.create({
-    data: { name: "Goethe-Gymnasium", joinCode: "GOETHE" },
+    data: { name: "Goethe-Gymnasium", joinCode: "GOETHE", requiresApproval: true },
   });
   const humboldt = await prisma.school.create({
-    data: { name: "Humboldt-Schule", joinCode: "HUMBOLDT" },
+    data: {
+      name: "Humboldt-Schule",
+      joinCode: "HUMBOLDT",
+      subjects: {
+        create: [{ subject: "Mathematik" }, { subject: "Physik" }, { subject: "Englisch" }],
+      },
+    },
   });
 
   const people = [
     { email: "lena@schule.de", name: "Lena Bergmann", gradeLevel: 11, schoolId: goethe.id },
     { email: "jonas@schule.de", name: "Jonas Weber", gradeLevel: 12, schoolId: goethe.id },
-    { email: "mira@schule.de", name: "Mira Sahin", gradeLevel: 13, schoolId: goethe.id },
+    // Verwaltet ihre Schule - der erste Verwalter kommt aus der Datenbank,
+    // nicht aus einem Formular (siehe README).
+    { email: "mira@schule.de", name: "Mira Sahin", gradeLevel: 13, schoolId: goethe.id, role: "admin" as const },
     { email: "tom@schule.de", name: "Tom Krueger", gradeLevel: 11, schoolId: goethe.id },
     { email: "aylin@schule.de", name: "Aylin Kaya", gradeLevel: 12, schoolId: goethe.id },
     { email: "paul@schule.de", name: "Paul Hoffmann", gradeLevel: 10, schoolId: goethe.id },
     // Andere Schule - taucht bei den Konten oben nie in der Suche auf
     { email: "nils@humboldt.de", name: "Nils Brandt", gradeLevel: 12, schoolId: humboldt.id },
-    { email: "sara@humboldt.de", name: "Sara Lindqvist", gradeLevel: 13, schoolId: humboldt.id },
+    { email: "sara@humboldt.de", name: "Sara Lindqvist", gradeLevel: 13, schoolId: humboldt.id, role: "admin" as const },
   ];
 
   const users: Record<string, string> = {};
@@ -155,16 +169,34 @@ async function main() {
       description: "Mechanik und Elektrizitaetslehre erklaere ich am liebsten mit Alltagsbeispielen.",
       topics: ["Mechanik", "Elektrizitaetslehre"],
     },
+    {
+      // Noch nicht freigegeben - so ist der Wartezustand sofort zu sehen,
+      // beim Anbieter wie in der Verwaltung.
+      email: "paul@schule.de",
+      subject: "Informatik",
+      maxGradeLevel: 9,
+      description: "Ich helfe bei den ersten Schritten in Python: Schleifen, Listen, Funktionen.",
+      topics: ["Python", "Schleifen"],
+      approved: false,
+    },
   ];
 
   const offerIds: Record<string, string> = {};
   for (const offer of offers) {
+    // Angebote gelten als von der Schule gesehen - sonst waere nach dem
+    // Seeding jede Suche leer, weil das Goethe-Gymnasium Freigaben verlangt.
+    const freigegeben = offer.approved !== false;
     const created = await prisma.tutorOffer.create({
       data: {
         userId: users[offer.email],
         subject: offer.subject,
         maxGradeLevel: offer.maxGradeLevel,
         description: offer.description,
+        approved: freigegeben,
+        approvedAt: freigegeben ? new Date() : null,
+        approvedById: freigegeben
+          ? users[offer.email.endsWith("humboldt.de") ? "sara@humboldt.de" : "mira@schule.de"]
+          : null,
         topics: {
           create: offer.topics.map((name) => ({ name, normalized: normalizeTopic(name) })),
         },
@@ -448,6 +480,7 @@ async function main() {
   console.log("3 angenommene Anfragen, davon eine mit Nachrichtenverlauf,");
   console.log("3 Bewertungen (Mira 5 und 4, Tom 2, Jonas noch keine),");
   console.log("2 Termine: einer zugesagt, einer wartet auf Antwort.");
+  console.log("Verwaltung: Mira (Goethe, mit Freigabepflicht), Sara (Humboldt, mit Faecherliste).");
   console.log(`Passwort fuer alle Konten: ${PASSWORD}`);
 }
 

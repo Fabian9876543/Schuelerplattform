@@ -9,6 +9,8 @@ import {
 } from "@/lib/constants";
 import { prisma } from "@/lib/db";
 import { LIMITS } from "@/lib/limits";
+import { canOfferSubject, resetsApproval } from "@/lib/school";
+import { schoolSubjects } from "@/lib/school-db";
 
 const schema = z.object({
   subject: subjectSchema,
@@ -53,6 +55,13 @@ export async function POST(request: Request) {
 
     if (topics.length === 0) return fail("Bitte gib mindestens ein Thema an.");
 
+    // Faecher, die die Schule nicht fuehrt, gibt es hier nicht - auch nicht
+    // ueber die Schnittstelle am Formular vorbei.
+    const erlaubt = await schoolSubjects(user.schoolId);
+    if (!canOfferSubject(parsed.data.subject, erlaubt)) {
+      return fail(`${parsed.data.subject} bietet deine Schule nicht an.`);
+    }
+
     const existing = await prisma.tutorOffer.findFirst({
       where: { userId: user.id, subject: parsed.data.subject },
     });
@@ -64,19 +73,29 @@ export async function POST(request: Request) {
       active: parsed.data.active ?? true,
     };
 
+    // Freigegeben wurde das Angebot, das die Schule gesehen hat. Wird es
+    // geaendert, muss sie noch einmal draufschauen - sonst liesse sich nach
+    // der Freigabe ein ganz anderes Angebot daraus machen.
+    const zuruecksetzen = resetsApproval(user.schoolRequiresApproval);
+
     if (existing) {
       // Themen werden ersetzt, nicht ergaenzt - sonst sammelt sich Altes an.
       const offer = await prisma.tutorOffer.update({
         where: { id: existing.id },
         data: {
           ...data,
+          ...(zuruecksetzen ? { approved: false, approvedAt: null, approvedById: null } : {}),
           topics: {
             deleteMany: {},
             create: topics.map((name) => ({ name, normalized: normalizeTopic(name) })),
           },
         },
       });
-      return ok({ id: offer.id, updated: true });
+      return ok({
+        id: offer.id,
+        updated: true,
+        wartetAufFreigabe: zuruecksetzen,
+      });
     }
 
     const offer = await prisma.tutorOffer.create({
@@ -87,6 +106,6 @@ export async function POST(request: Request) {
       },
     });
 
-    return ok({ id: offer.id }, 201);
+    return ok({ id: offer.id, wartetAufFreigabe: user.schoolRequiresApproval }, 201);
   });
 }

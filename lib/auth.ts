@@ -2,9 +2,11 @@ import { randomBytes } from "node:crypto";
 
 import bcrypt from "bcryptjs";
 import { cookies } from "next/headers";
-import { redirect } from "next/navigation";
+import { notFound, redirect } from "next/navigation";
 
+import type { UserRole } from "@/lib/constants";
 import { prisma } from "@/lib/db";
+import { isAdmin } from "@/lib/school";
 
 const COOKIE_NAME = "schuelerplattform_session";
 const SESSION_DAYS = 30;
@@ -17,6 +19,9 @@ export type SessionUser = {
   /// An welche Schule der Zugang gebunden ist - Suche und Anfragen enden hier.
   schoolId: string;
   schoolName: string;
+  role: UserRole;
+  /// Verlangt diese Schule eine Freigabe fuer Nachhilfe-Angebote?
+  schoolRequiresApproval: boolean;
 };
 
 export async function hashPassword(password: string): Promise<string> {
@@ -78,6 +83,8 @@ export async function getCurrentUser(): Promise<SessionUser | null> {
     gradeLevel: session.user.gradeLevel,
     schoolId: session.user.schoolId,
     schoolName: session.user.school.name,
+    role: session.user.role,
+    schoolRequiresApproval: session.user.school.requiresApproval,
   };
 }
 
@@ -85,5 +92,16 @@ export async function getCurrentUser(): Promise<SessionUser | null> {
 export async function requireUser(): Promise<SessionUser> {
   const user = await getCurrentUser();
   if (!user) redirect("/login");
+  return user;
+}
+
+/**
+ * Fuer die Verwaltungsseite. Wer nicht angemeldet ist, landet beim Login;
+ * wer angemeldet ist, aber nichts zu verwalten hat, bekommt 404 statt einer
+ * Meldung - die Seite muss ihm gar nicht erst bekannt werden.
+ */
+export async function requireAdmin(): Promise<SessionUser> {
+  const user = await requireUser();
+  if (!isAdmin(user.role)) notFound();
   return user;
 }

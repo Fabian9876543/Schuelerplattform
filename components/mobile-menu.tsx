@@ -4,7 +4,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useRef } from "react";
 
-import { NAV_ITEMS } from "@/components/nav-items";
+import { sichtbareNavItems } from "@/components/nav-items";
 import type { SessionUser } from "@/lib/auth";
 
 /**
@@ -43,7 +43,7 @@ export function MobileMenu({ user, unread = 0 }: { user: SessionUser; unread?: n
       {/* Klappt unter der Leiste auf, über dem Seiteninhalt */}
       <div className="absolute inset-x-0 top-full z-20 border-b border-slate-200 bg-white shadow-lg">
         <nav className="mx-auto flex w-full max-w-5xl flex-col px-4 py-2">
-          {NAV_ITEMS.map((item) => (
+          {sichtbareNavItems(user).map((item) => (
             <Link
               key={item.href}
               href={item.href}

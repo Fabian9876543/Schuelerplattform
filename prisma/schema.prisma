@@ -43,6 +43,13 @@ enum MasteryLevel {
   strong
 }
 
+/// Was ein Konto in seiner Schule darf.
+enum UserRole {
+  student
+  /// verwaltet die eigene Schule: Freigaben, Faecher, weitere Verwalter
+  admin
+}
+
 /// Stand eines vereinbarten Termins.
 enum AppointmentStatus {
   /// vorgeschlagen, die andere Seite hat noch nicht zugesagt
@@ -67,9 +74,31 @@ model School {
   name      String
   /// Code, den die Schule ausgibt; damit meldet man sich in ihrem Bereich an
   joinCode  String   @unique
+  /// Muessen Nachhilfe-Angebote erst freigegeben werden, bevor sie in der
+  /// Suche auftauchen? Voreinstellung: nein - eine Schule, die diese Huerde
+  /// nicht will, soll sie nicht aufgezwungen bekommen.
+  requiresApproval Boolean @default(false)
   createdAt DateTime @default(now())
 
-  users User[]
+  users    User[]
+  subjects SchoolSubject[]
+}
+
+/// Ein Fach, das diese Schule zulaesst.
+///
+/// Solange eine Schule keinen einzigen Eintrag hat, sind alle Faecher aus
+/// lib/constants.ts erlaubt. Eine leere Liste heisst also "keine
+/// Einschraenkung" und nicht "nichts erlaubt" - sonst waere jede Schule
+/// stillgelegt, bis jemand eine Liste pflegt.
+model SchoolSubject {
+  id       String @id @default(cuid())
+  schoolId String
+  subject  String
+
+  school School @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+
+  @@unique([schoolId, subject])
+  @@index([schoolId])
 }
 
 model User {
@@ -79,6 +108,7 @@ model User {
   name         String
   gradeLevel   Int
   schoolId     String
+  role         UserRole @default(student)
   createdAt    DateTime @default(now())
 
   school            School            @relation(fields: [schoolId], references: [id])
@@ -89,6 +119,7 @@ model User {
   sentMessages      Message[]         @relation("MessagesSent")
   givenRatings      Rating[]          @relation("RatingsGiven")
   proposedMeetings  Appointment[]     @relation("AppointmentsProposed")
+  approvedOffers    TutorOffer[]      @relation("OffersApproved")
 
   @@index([schoolId])
 }
@@ -263,8 +294,14 @@ model TutorOffer {
   maxGradeLevel Int
   description   String
   active        Boolean @default(true)
+  /// Von der Schule freigegeben. Zaehlt nur, wenn die Schule Freigaben
+  /// verlangt; sonst ist das Feld ohne Wirkung.
+  approved      Boolean @default(false)
+  approvedAt    DateTime?
+  approvedById  String?
 
-  user     User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user       User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  approvedBy User? @relation("OffersApproved", fields: [approvedById], references: [id], onDelete: SetNull)
   topics   TutorOfferTopic[]
   requests TutoringRequest[]
   ratings  Rating[]

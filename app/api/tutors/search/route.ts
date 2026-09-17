@@ -19,6 +19,7 @@ export async function GET(request: Request) {
       gradeLevel: Number.isFinite(grade) && grade > 0 ? grade : user.gradeLevel,
       excludeUserId: user.id,
       schoolId: user.schoolId,
+      requiresApproval: user.schoolRequiresApproval,
     });
 
     return ok({ matches });

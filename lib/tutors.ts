@@ -14,6 +14,8 @@ export async function searchTutors(options: {
   excludeUserId: string;
   /// Nur Angebote aus dieser Schule - die Plattform endet an der Schulgrenze.
   schoolId: string;
+  /// Verlangt die Schule eine Freigabe? Dann zaehlen nur freigegebene Angebote.
+  requiresApproval: boolean;
 }): Promise<MatchResult[]> {
   const offers = await prisma.tutorOffer.findMany({
     where: {
@@ -21,6 +23,10 @@ export async function searchTutors(options: {
       active: true,
       NOT: { userId: options.excludeUserId },
       user: { schoolId: options.schoolId },
+      // Die Freigabe wirkt nur, solange die Schule sie verlangt. Schaltet sie
+      // die Pflicht ab, sind alle Angebote wieder da - ohne dass jemand
+      // hunderte Haken setzen muss.
+      ...(options.requiresApproval ? { approved: true } : {}),
     },
     include: {
       topics: true,

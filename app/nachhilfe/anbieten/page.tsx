@@ -5,6 +5,8 @@ import { requireUser } from "@/lib/auth";
 import { prisma } from "@/lib/db";
 import { formatDate } from "@/lib/format";
 import { ratingSummaries, ratingsForOwnOffers } from "@/lib/ratings-db";
+import { allowedSubjects } from "@/lib/school";
+import { schoolSubjects } from "@/lib/school-db";
 
 export default async function OfferPage() {
   const user = await requireUser();
@@ -18,10 +20,12 @@ export default async function OfferPage() {
     orderBy: { subject: "asc" },
   });
 
-  const [bewertungen, rueckmeldungen] = await Promise.all([
+  const [bewertungen, rueckmeldungen, faecherDerSchule] = await Promise.all([
     ratingSummaries(offers.map((offer) => offer.id)),
     ratingsForOwnOffers(user.id),
+    schoolSubjects(user.schoolId),
   ]);
+  const faecher = allowedSubjects(faecherDerSchule);
 
   return (
     <div className="mx-auto max-w-2xl">
@@ -56,12 +60,18 @@ export default async function OfferPage() {
                   </div>
                 </div>
                 <div className="text-right text-xs text-slate-500">
-                  {offer.active ? (
+                  {!offer.active ? (
+                    <span className="rounded-full bg-slate-100 px-2.5 py-0.5">pausiert</span>
+                  ) : user.schoolRequiresApproval && !offer.approved ? (
+                    // Ohne diesen Hinweis wuerde sich jemand wundern, warum
+                    // ihn niemand findet.
+                    <span className="rounded-full bg-amber-50 px-2.5 py-0.5 text-amber-700">
+                      wartet auf Freigabe
+                    </span>
+                  ) : (
                     <span className="rounded-full bg-emerald-50 px-2.5 py-0.5 text-emerald-700">
                       aktiv
                     </span>
-                  ) : (
-                    <span className="rounded-full bg-slate-100 px-2.5 py-0.5">pausiert</span>
                   )}
                   <div className="mt-1">{offer._count.requests} mal angenommen</div>
                   {bewertungen.has(offer.id) ? (
@@ -110,8 +120,15 @@ export default async function OfferPage() {
         <p className="mb-4 text-sm text-slate-600">
           Pro Fach gibt es ein Angebot. Traegst du ein Fach erneut ein, wird das bestehende Angebot
           aktualisiert.
+          {user.schoolRequiresApproval ? (
+            <>
+              {" "}
+              {user.schoolName} gibt Angebote frei, bevor sie in der Suche auftauchen - auch nach
+              einer Aenderung schaut die Schule noch einmal drauf.
+            </>
+          ) : null}
         </p>
-        <OfferForm />
+        <OfferForm subjects={faecher} />
       </Card>
     </div>
   );

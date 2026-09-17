@@ -42,12 +42,14 @@ export {
   EvaluationSource,
   QuestionKind,
   RequestStatus,
+  UserRole,
 } from "@/lib/generated/prisma/enums";
 
 export const appointmentStatusSchema = z.enum(PrismaEnums.AppointmentStatus);
 export const assessmentStatusSchema = z.enum(PrismaEnums.AssessmentStatus);
 export const questionKindSchema = z.enum(PrismaEnums.QuestionKind);
 export const requestStatusSchema = z.enum(PrismaEnums.RequestStatus);
+export const userRoleSchema = z.enum(PrismaEnums.UserRole);
 export const evaluationSourceSchema = z.enum(PrismaEnums.EvaluationSource);
 
 /** Schweregrad eines Defizits */

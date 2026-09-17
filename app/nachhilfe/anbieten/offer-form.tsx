@@ -4,14 +4,14 @@ import { useRouter } from "next/navigation";
 import { useState } from "react";
 
 import { Button, ErrorNote, Field, inputClass } from "@/components/ui";
-import { MAX_GRADE_LEVEL, MIN_GRADE_LEVEL, SUBJECTS } from "@/lib/constants";
+import { MAX_GRADE_LEVEL, MIN_GRADE_LEVEL, type Subject } from "@/lib/constants";
 
 const GRADES = Array.from(
   { length: MAX_GRADE_LEVEL - MIN_GRADE_LEVEL + 1 },
   (_, index) => MIN_GRADE_LEVEL + index,
 );
 
-export function OfferForm() {
+export function OfferForm({ subjects }: { subjects: readonly Subject[] }) {
   const router = useRouter();
   const [error, setError] = useState<string | null>(null);
   const [pending, setPending] = useState(false);
@@ -48,8 +48,13 @@ export function OfferForm() {
 
       <div className="grid gap-4 sm:grid-cols-2">
         <Field label="Fach">
-          <select name="subject" required defaultValue="Mathematik" className={inputClass}>
-            {SUBJECTS.map((subject) => (
+          <select
+            name="subject"
+            required
+            defaultValue={subjects.includes("Mathematik") ? "Mathematik" : subjects[0]}
+            className={inputClass}
+          >
+            {subjects.map((subject) => (
               <option key={subject} value={subject}>
                 {subject}
               </option>

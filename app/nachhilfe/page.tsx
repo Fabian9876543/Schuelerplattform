@@ -3,6 +3,8 @@ import { Stars } from "@/components/stars";
 import { Card, EmptyState, PageTitle } from "@/components/ui";
 import { requireUser } from "@/lib/auth";
 import { SUBJECTS } from "@/lib/constants";
+import { allowedSubjects } from "@/lib/school";
+import { schoolSubjects } from "@/lib/school-db";
 import { prisma } from "@/lib/db";
 import { searchTutors } from "@/lib/tutors";
 
@@ -14,6 +16,8 @@ export default async function TutorSearchPage({
   const user = await requireUser();
   const params = await searchParams;
 
+  // Zur Auswahl steht, was die Schule fuehrt - ohne eigene Liste alle Faecher.
+  const faecher = allowedSubjects(await schoolSubjects(user.schoolId));
   const subject = params.subject && SUBJECTS.includes(params.subject as never) ? params.subject : "";
   const topic = params.topic ?? "";
 
@@ -37,6 +41,7 @@ export default async function TutorSearchPage({
         gradeLevel: user.gradeLevel,
         excludeUserId: user.id,
         schoolId: user.schoolId,
+        requiresApproval: user.schoolRequiresApproval,
       })
     : [];
 
@@ -57,7 +62,7 @@ export default async function TutorSearchPage({
               className="w-full rounded-md border border-slate-300 bg-white px-3 py-2 outline-none focus:border-brand-500"
             >
               <option value="">Bitte waehlen</option>
-              {SUBJECTS.map((item) => (
+              {faecher.map((item) => (
                 <option key={item} value={item}>
                   {item}
                 </option>

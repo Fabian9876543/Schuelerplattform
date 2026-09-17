@@ -46,11 +46,11 @@ Alle Beispielkonten haben das Passwort `geheim123`:
 |---|---|---|
 | `lena@schule.de` | Goethe-Gymnasium | hat eine fertig ausgewertete Mathe-Klausur mit Lernplan |
 | `jonas@schule.de` | Goethe-Gymnasium | gibt Nachhilfe in Mathe und Physik, offene Anfrage, noch keine Bewertung |
-| `mira@schule.de` | Goethe-Gymnasium | gibt Nachhilfe in Mathe bis Klasse 13, mit 5 und 4 Sternen bewertet, ein Termin steht, einer wartet auf ihre Antwort |
+| `mira@schule.de` | Goethe-Gymnasium | **verwaltet die Schule**; gibt Nachhilfe in Mathe bis Klasse 13, mit 5 und 4 Sternen bewertet, ein Termin steht, einer wartet auf ihre Antwort |
 | `tom@schule.de` | Goethe-Gymnasium | angenommene Anfrage bei Mira mit Verlauf; gibt selbst Nachhilfe, mit 2 Sternen bewertet |
-| `paul@schule.de` | Goethe-Gymnasium | hat eine Anfrage an Jonas gestellt |
+| `paul@schule.de` | Goethe-Gymnasium | hat eine Anfrage an Jonas gestellt; sein Informatik-Angebot wartet auf die Freigabe der Schule |
 | `nils@humboldt.de` | Humboldt-Schule | bietet dieselben Mathe-Themen an – für das Goethe-Gymnasium unsichtbar |
-| `sara@humboldt.de` | Humboldt-Schule | ebenso |
+| `sara@humboldt.de` | Humboldt-Schule | **verwaltet die Humboldt-Schule**, bietet ebenfalls Mathe an |
 
 Melde dich als Lena an und suche Nachhilfe in Mathematik: Nils und Sara tauchen
 nicht auf, obwohl sie genau diese Themen anbieten. Als Nils ist es umgekehrt.
@@ -273,10 +273,8 @@ Die Abschottung greift an zwei Stellen, und die zweite ist die wichtigere:
 Die Meldung lautet in beiden Fällen „Dieses Angebot gibt es nicht mehr" und
 verrät damit nicht, dass es an einer anderen Schule existiert.
 
-**Noch nicht gebaut:** Die Schule kann bisher nicht festlegen, wer als
-Lernhelfer zugelassen wird oder welche Fächer angeboten werden. Dafür braucht
-es eine eigene Rolle und Oberfläche – erst ist die Grenze gezogen, verwalten
-lässt sich innerhalb davon später.
+Innerhalb dieser Grenze verwaltet die Schule selbst – siehe
+[Schulverwaltung](#schulverwaltung).
 
 ## Nachrichten
 
@@ -304,6 +302,44 @@ keiner Aufrufstelle vergessen werden.
 Der offene Verlauf lädt alle acht Sekunden nach, solange der Tab sichtbar ist;
 ruht er im Hintergrund, wird nicht nachgefragt. Das Markieren als gelesen
 passiert beim Aufbau der Seite und hängt nicht am Nachladen.
+
+## Schulverwaltung
+
+Jedes Konto hat eine Rolle (`student` oder `admin`). Verwalter sehen unter
+`/schule` ihre **eigene** Schule und regeln dort drei Dinge:
+
+1. **Freigabe von Nachhilfe-Angeboten.** Ist die Freigabepflicht eingeschaltet,
+   taucht ein Angebot erst in der Suche auf, wenn die Schule es freigegeben hat.
+   Wird ein freigegebenes Angebot geändert, ist die Freigabe weg: Freigegeben
+   wurde das Angebot, das die Schule *gesehen* hat.
+2. **Welche Fächer** angeboten und gesucht werden dürfen. Keine Auswahl heißt
+   „alle" – nicht „keins", sonst wäre jede Schule stillgelegt, bis jemand eine
+   Liste pflegt.
+3. **Wer mitverwaltet.**
+
+Im Seed sind beide Betriebsarten zu sehen: Das Goethe-Gymnasium verlangt
+Freigaben, die Humboldt-Schule nicht, führt dafür eine Fächerliste.
+
+### Drei Entscheidungen, die daran hängen
+
+- **Verwalten heißt nicht mitlesen.** Die Seite zeigt, wer was anbietet, und
+  Zahlen zur Schule. Sie zeigt **keine** Nachrichten, Bewertungen oder
+  Selbsttests – die passenden Abfragen gibt es in `lib/school-db.ts` schlicht
+  nicht.
+- **Der erste Verwalter kommt aus der Datenbank**, nicht aus einem Formular.
+  Könnte man sich bei der Registrierung selbst zum Verwalter erklären, wäre
+  jeder mit dem Beitrittscode einer. Weitere Verwalter ernennt ein vorhandener.
+- **Niemand kann sich selbst die Rolle entziehen.** Damit bleibt immer
+  mindestens ein Verwalter übrig; eine Schule kann sich nicht aussperren.
+
+Die Abschottung gilt auch hier: Ein Verwalter des Goethe-Gymnasiums, der die
+Angebots-ID der Humboldt-Schule direkt an die API schickt, bekommt 404 – wie
+bei der Nachhilfesuche ist die gefilterte Anzeige nicht der Riegel, sondern die
+Prüfung in der Route.
+
+**Noch offen:** Verwalter sind derzeit Schülerkonten mit Klassenstufe. Ein
+Lehrerzugang bräuchte ein Konto ohne Klassenstufe – das berührt Suche und
+Matching und ist deshalb ein eigener Schritt.
 
 ## Kalender
 
@@ -446,6 +482,8 @@ lib/
   ratings-db.ts      die Abfragen dazu
   appointments.ts    Termine: einlesen, Überschneidung, wer darf zusagen
   appointments-db.ts die Abfragen dazu, samt Doppelbelegung
+  school.ts          Rollen, Fächerliste, Sichtbarkeit von Angeboten
+  school-db.ts       die Abfragen der Verwaltung - bewusst ohne Inhalte
   auth.ts            E-Mail/Passwort-Anmeldung mit Session-Cookie
 prisma/              Datenmodell, Migrationen, Beispieldaten
 tests/               Vitest-Tests für die Logik
@@ -457,10 +495,10 @@ Schreibzugriffe laufen über Route Handler mit Zod-Validierung.
 ## Tests
 
 ```bash
-npm test         # 97 Tests: Terminverteilung, Matching, Fallback, KI-Schemas,
-                 #            Umplanung, Grenzwerte, Zugang zu Verläufen,
-                 #            Gewicht der Bewertungen, Kalenderrechnung,
-                 #            Terminregeln und Überschneidungen
+npm test         # 108 Tests: Terminverteilung, Matching, Fallback, KI-Schemas,
+                 #             Umplanung, Grenzwerte, Zugang zu Verläufen,
+                 #             Gewicht der Bewertungen, Kalenderrechnung,
+                 #             Terminregeln, Rollen und Fächerlisten
 npm run build    # Typprüfung und Produktionsbuild
 ```
 
@@ -477,7 +515,7 @@ Die Tests brauchen keinen API-Schlüssel.
   durch ist.
 - **Status- und Typfelder** sind echte `enum`-Typen in der Datenbank
   (`AssessmentStatus`, `QuestionKind`, `EvaluationSource`, `RequestStatus`,
-  `MasteryLevel`, `AppointmentStatus`).
+  `MasteryLevel`, `AppointmentStatus`, `UserRole`).
   Die Datenbank lässt keinen ungültigen Wert zu, Prisma erzeugt daraus die
   TypeScript-Typen, und `lib/constants.ts` leitet die Zod-Schemas davon ab –
   eine Quelle statt zwei.
@@ -490,5 +528,6 @@ Die Tests brauchen keinen API-Schlüssel.
 ## Was als Nächstes sinnvoll wäre
 
 - Rückmeldung nach der Klausur, um die Treffsicherheit der Auswertung zu prüfen
-- Verwaltung durch die Schule: wer als Lernhelfer zugelassen ist, welche Fächer
-  angeboten werden
+- Lehrerzugänge: ein Konto ohne Klassenstufe, damit nicht Schüler die Schule
+  verwalten müssen
+- Rückmeldung an die Schule, wenn jemand ein Angebot meldet
