@@ -3,6 +3,7 @@ import Link from "next/link";
 import { RequestActions } from "@/app/anfragen/request-actions";
 import { StatusBadge } from "@/app/anfragen/status-badge";
 import { Stars } from "@/components/stars";
+import { formatAppointment } from "@/lib/appointments";
 import { Card, EmptyState, PageTitle } from "@/components/ui";
 import { requireUser } from "@/lib/auth";
 import { prisma } from "@/lib/db";
@@ -31,6 +32,21 @@ function ThreadLink({ id, ungelesen }: { id: string; ungelesen: number }) {
   );
 }
 
+/** Der naechste feste Termin, falls einer ausgemacht ist. */
+function NextMeeting({
+  termin,
+}: {
+  termin: { startsAt: Date; durationMinutes: number; place: string | null } | null;
+}) {
+  if (!termin) return null;
+  return (
+    <p className="mt-2 rounded-md bg-emerald-50 px-3 py-1.5 text-sm text-emerald-800">
+      Naechster Termin: {formatAppointment(termin)}
+      {termin.place ? `, ${termin.place}` : ""}
+    </p>
+  );
+}
+
 /**
  * Was aus der Bewertung geworden ist. Wer angefragt hat, wird einmal daran
  * erinnert; wer Nachhilfe gegeben hat, sieht das Ergebnis. Ein Anmahnen in
@@ -52,6 +68,17 @@ function RatingNote({ stars, role }: { stars: number | null; role: "requester" |
   );
 }
 
+/**
+ * Nur der naechste noch bevorstehende, zugesagte Termin - mehr braucht die
+ * Uebersicht nicht, und es bleibt bei einer Abfrage.
+ */
+const naechsterTermin = {
+  where: { status: "confirmed", startsAt: { gte: new Date() } },
+  orderBy: { startsAt: "asc" },
+  take: 1,
+  select: { id: true, startsAt: true, durationMinutes: true, place: true },
+} as const;
+
 export default async function RequestsPage() {
   const user = await requireUser();
 
@@ -62,6 +89,7 @@ export default async function RequestsPage() {
         requester: { select: { name: true, gradeLevel: true } },
         tutorOffer: { select: { subject: true } },
         rating: { select: { stars: true } },
+        meetings: naechsterTermin,
       },
       orderBy: [{ status: "asc" }, { createdAt: "desc" }],
     }),
@@ -70,6 +98,7 @@ export default async function RequestsPage() {
       include: {
         tutorOffer: { select: { subject: true, user: { select: { name: true } } } },
         rating: { select: { stars: true } },
+        meetings: naechsterTermin,
       },
       orderBy: { createdAt: "desc" },
     }),
@@ -111,6 +140,7 @@ export default async function RequestsPage() {
 
                     {request.status === "accepted" ? (
                       <>
+                        <NextMeeting termin={request.meetings[0] ?? null} />
                         <ThreadLink id={request.id} ungelesen={ungelesen.get(request.id) ?? 0} />
                         <RatingNote stars={request.rating?.stars ?? null} role="tutor" />
                       </>
@@ -157,6 +187,7 @@ export default async function RequestsPage() {
 
                     {request.status === "accepted" ? (
                       <>
+                        <NextMeeting termin={request.meetings[0] ?? null} />
                         <ThreadLink id={request.id} ungelesen={ungelesen.get(request.id) ?? 0} />
                         <RatingNote stars={request.rating?.stars ?? null} role="requester" />
                       </>

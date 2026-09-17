@@ -31,6 +31,12 @@ export async function loadThread(requestId: string, userId: string) {
       // Die Bewertung gehoert zur selben Ansicht: Die anfragende Person gibt
       // sie dort ab, die andere sieht sie dort.
       rating: { select: { stars: true, comment: true, updatedAt: true } },
+      // Die Termine gehoeren in dieselbe Ansicht: Verabredet wird sich da,
+      // wo man miteinander schreibt.
+      meetings: {
+        orderBy: { startsAt: "asc" },
+        include: { proposedBy: { select: { id: true, name: true } } },
+      },
     },
   });
   if (!request) return null;

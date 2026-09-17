@@ -43,6 +43,14 @@ enum MasteryLevel {
   strong
 }
 
+/// Stand eines vereinbarten Termins.
+enum AppointmentStatus {
+  /// vorgeschlagen, die andere Seite hat noch nicht zugesagt
+  proposed
+  confirmed
+  cancelled
+}
+
 /// Stand einer Nachhilfe-Anfrage.
 enum RequestStatus {
   open
@@ -80,6 +88,7 @@ model User {
   sentRequests      TutoringRequest[] @relation("RequestsSent")
   sentMessages      Message[]         @relation("MessagesSent")
   givenRatings      Rating[]          @relation("RatingsGiven")
+  proposedMeetings  Appointment[]     @relation("AppointmentsProposed")
 
   @@index([schoolId])
 }
@@ -295,6 +304,7 @@ model TutoringRequest {
   deficit    Deficit?   @relation(fields: [deficitId], references: [id], onDelete: SetNull)
   messages   Message[]
   rating     Rating?
+  meetings   Appointment[]
 
   @@index([requesterId])
   @@index([tutorOfferId])
@@ -354,6 +364,40 @@ model Rating {
 
   @@index([tutorOfferId])
   @@index([raterId])
+}
+
+/// Ein fester Lerntermin zu einer Nachhilfe-Anfrage.
+///
+/// Vorgeschlagen wird von einer Seite, zugesagt von der anderen - deshalb
+/// `proposedById`: Wer vorschlaegt, kann nicht selbst zusagen, sonst waere die
+/// Zusage keine. Absagen duerfen beide, auch noch nach der Zusage; ein Termin
+/// wird dabei nicht geloescht, sondern auf `cancelled` gesetzt, damit im
+/// Verlauf nachvollziehbar bleibt, dass es ihn gab.
+///
+/// `startsAt` ist eine Wanduhrzeit, kein Zeitpunkt mit Zeitzone: Eingabe und
+/// Anzeige laufen beide auf dem Server, dadurch kommt heraus, was eingetippt
+/// wurde. Fuer eine Plattform innerhalb einer Schule ist das richtig - alle
+/// Beteiligten sitzen ohnehin in derselben Zeitzone.
+model Appointment {
+  id              String   @id @default(cuid())
+  requestId       String
+  proposedById    String
+  startsAt        DateTime
+  /// Dauer in Minuten; die Datenbank laesst nur 15 bis 240 zu (CHECK)
+  durationMinutes Int
+  /// "Bibliothek", "Raum 204", "bei mir zu Hause" - freiwillig
+  place           String?
+  status          AppointmentStatus @default(proposed)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  respondedAt     DateTime?
+
+  request    TutoringRequest @relation(fields: [requestId], references: [id], onDelete: Cascade)
+  proposedBy User            @relation("AppointmentsProposed", fields: [proposedById], references: [id], onDelete: Cascade)
+
+  @@index([requestId, startsAt])
+  @@index([startsAt])
+  @@index([proposedById])
 }
 
 /// Fehlgeschlagene Anmeldeversuche - bremst das Durchprobieren von Passwoertern.

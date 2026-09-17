@@ -1,6 +1,8 @@
 import Link from "next/link";
 
 import { Card, EmptyState, LinkButton, PageTitle } from "@/components/ui";
+import { formatAppointment } from "@/lib/appointments";
+import { appointmentsInRange } from "@/lib/appointments-db";
 import { requireUser } from "@/lib/auth";
 import {
   buildMonthGrid,
@@ -21,6 +23,17 @@ interface Klausur {
   goalId: string;
   title: string;
   subject: string;
+}
+
+interface Termin {
+  id: string;
+  requestId: string;
+  label: string;
+  partnerName: string;
+  subject: string;
+  topic: string;
+  place: string | null;
+  confirmed: boolean;
 }
 
 interface Aufgabe {
@@ -59,7 +72,7 @@ export default async function CalendarPage({
   const bis = new Date(raster.at(-1)!.at(-1)!.date);
   bis.setHours(23, 59, 59, 999);
 
-  const [goals, tasks] = await Promise.all([
+  const [goals, tasks, termine] = await Promise.all([
     // Alle Klausuren, nicht nur die des Monats: Daraus entsteht unten der
     // Hinweis auf die naechste, wenn im offenen Monat keine ansteht.
     prisma.learningGoal.findMany({
@@ -90,7 +103,20 @@ export default async function CalendarPage({
       },
       orderBy: { dueDate: "asc" },
     }),
+    appointmentsInRange(user.id, von, bis),
   ]);
+
+  // Wer noch keine Klausur eingetragen hat, kann trotzdem Nachhilfetermine
+  // haben - dann ist der Kalender nicht leer und der Hinweis waere falsch.
+  const hatInhalt =
+    goals.length > 0 ||
+    termine.length > 0 ||
+    (await prisma.appointment.count({
+      where: {
+        status: { in: ["proposed", "confirmed"] },
+        request: { OR: [{ requesterId: user.id }, { tutorOffer: { userId: user.id } }] },
+      },
+    })) > 0;
 
   const klausurenProTag = new Map<string, Klausur[]>();
   for (const goal of goals) {
@@ -116,6 +142,28 @@ export default async function CalendarPage({
     aufgabenProTag.set(schluessel, liste);
   }
 
+  const termineProTag = new Map<string, Termin[]>();
+  for (const termin of termine) {
+    const schluessel = dayKey(termin.startsAt);
+    const liste = termineProTag.get(schluessel) ?? [];
+    const istAnfragender = termin.request.requesterId === user.id;
+    liste.push({
+      id: termin.id,
+      requestId: termin.requestId,
+      // Auf dem Server formatiert, damit die Uhrzeit nicht an der Zeitzone
+      // des Geraets haengt.
+      label: formatAppointment(termin),
+      partnerName: istAnfragender
+        ? termin.request.tutorOffer.user.name
+        : termin.request.requester.name,
+      subject: termin.request.tutorOffer.subject,
+      topic: termin.request.topic,
+      place: termin.place,
+      confirmed: termin.status === "confirmed",
+    });
+    termineProTag.set(schluessel, liste);
+  }
+
   // Ohne Angabe ist der heutige Tag gemeint - aber nur, wenn er im gezeigten
   // Monat liegt. Blaettert man weiter, ist zunaechst kein Tag ausgewaehlt.
   const angefragterTag = parseDayKey(params.tag);
@@ -134,10 +182,10 @@ export default async function CalendarPage({
     <div>
       <PageTitle
         title="Kalender"
-        subtitle="Klausuren und Lernaufgaben auf einen Blick."
+        subtitle="Klausuren, Lernaufgaben und Nachhilfetermine auf einen Blick."
       />
 
-      {goals.length === 0 ? (
+      {!hatInhalt ? (
         <EmptyState title="Noch keine Klausur eingetragen">
           <p>Sobald eine Klausur eingetragen ist, steht sie hier - und mit dem Lernplan auch
             die Aufgaben auf den Tagen davor.</p>
@@ -197,6 +245,7 @@ export default async function CalendarPage({
                     {woche.map((tag) => {
                       const klausuren = klausurenProTag.get(tag.key) ?? [];
                       const aufgaben = aufgabenProTag.get(tag.key) ?? [];
+                      const tagesTermine = termineProTag.get(tag.key) ?? [];
                       const offen = aufgaben.filter((aufgabe) => !aufgabe.done).length;
                       const istGewaehlt = tag.key === gewaehltKey;
 
@@ -228,6 +277,20 @@ export default async function CalendarPage({
                                 <span
                                   className="h-2 w-2 rounded-full bg-red-500"
                                   aria-label={`Klausur: ${klausuren.map((k) => k.subject).join(", ")}`}
+                                />
+                              ) : null}
+                              {tagesTermine.length > 0 ? (
+                                <span
+                                  className={`h-2 w-2 rounded-full ${
+                                    tagesTermine.some((termin) => termin.confirmed)
+                                      ? "bg-emerald-500"
+                                      : "border border-amber-500"
+                                  }`}
+                                  aria-label={
+                                    tagesTermine.some((termin) => termin.confirmed)
+                                      ? "Nachhilfetermin"
+                                      : "vorgeschlagener Nachhilfetermin"
+                                  }
                                 />
                               ) : null}
                               {offen > 0 ? (
@@ -263,6 +326,13 @@ export default async function CalendarPage({
                 offene Lernaufgaben
               </span>
               <span className="flex items-center gap-1.5">
+                <span className="h-2 w-2 rounded-full bg-emerald-500" aria-hidden="true" /> Nachhilfetermin
+              </span>
+              <span className="flex items-center gap-1.5">
+                <span className="h-2 w-2 rounded-full border border-amber-500" aria-hidden="true" />{" "}
+                vorgeschlagen
+              </span>
+              <span className="flex items-center gap-1.5">
                 <span className="text-emerald-600" aria-hidden="true">&#10003;</span> alles erledigt
               </span>
             </div>
@@ -283,6 +353,7 @@ export default async function CalendarPage({
             tag={gewaehlt}
             klausuren={gewaehltKey ? (klausurenProTag.get(gewaehltKey) ?? []) : []}
             aufgaben={gewaehltKey ? (aufgabenProTag.get(gewaehltKey) ?? []) : []}
+            termine={gewaehltKey ? (termineProTag.get(gewaehltKey) ?? []) : []}
             heute={heute}
           />
         </>
@@ -296,11 +367,13 @@ function DayDetail({
   tag,
   klausuren,
   aufgaben,
+  termine,
   heute,
 }: {
   tag: Date | null;
   klausuren: Klausur[];
   aufgaben: Aufgabe[];
+  termine: Termin[];
   heute: Date;
 }) {
   if (!tag) {
@@ -320,7 +393,7 @@ function DayDetail({
         <span className="ml-2 text-sm font-normal text-slate-500">{describeCountdown(abstand)}</span>
       </h2>
 
-      {klausuren.length === 0 && aufgaben.length === 0 ? (
+      {klausuren.length === 0 && aufgaben.length === 0 && termine.length === 0 ? (
         <p className="mt-2 text-sm text-slate-500">An diesem Tag steht nichts an.</p>
       ) : null}
 
@@ -333,6 +406,24 @@ function DayDetail({
             {klausur.title}
           </Link>
           <span className="ml-2 text-sm text-red-700">{klausur.subject}</span>
+        </div>
+      ))}
+
+      {termine.map((termin) => (
+        <div
+          key={termin.id}
+          className={`mt-3 rounded-md border px-3 py-2 ${
+            termin.confirmed ? "border-emerald-200 bg-emerald-50" : "border-amber-200 bg-amber-50"
+          }`}
+        >
+          <Link href={`/anfragen/${termin.requestId}`} className="font-medium text-slate-800 underline">
+            Nachhilfe mit {termin.partnerName}
+          </Link>
+          <p className="text-sm text-slate-600">
+            {termin.label.split(", ").slice(-1)[0]} &middot; {termin.subject} &middot; {termin.topic}
+            {termin.place ? ` · ${termin.place}` : ""}
+          </p>
+          <p className="text-xs text-slate-500">{termin.confirmed ? "zugesagt" : "noch nicht zugesagt"}</p>
         </div>
       ))}
 

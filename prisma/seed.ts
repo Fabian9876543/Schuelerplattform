@@ -36,6 +36,14 @@ function inDays(days: number): Date {
   return date;
 }
 
+/** Ein Termin in `days` Tagen zur angegebenen Uhrzeit. */
+function inDaysAt(days: number, hour: number, minute = 0): Date {
+  const date = new Date();
+  date.setDate(date.getDate() + days);
+  date.setHours(hour, minute, 0, 0);
+  return date;
+}
+
 async function main() {
   console.log("Setze Beispieldaten ...");
 
@@ -44,6 +52,7 @@ async function main() {
   // Auch die Anmeldeversuche: Sonst bleibt nach dem Seeding eine Sperre aus
   // einem frueheren Lauf bestehen, und die Beispielkonten kommen nicht herein.
   await prisma.loginAttempt.deleteMany();
+  await prisma.appointment.deleteMany();
   await prisma.rating.deleteMany();
   await prisma.message.deleteMany();
   await prisma.tutoringRequest.deleteMany();
@@ -405,11 +414,40 @@ async function main() {
     },
   });
 
+  // --- Feste Termine --------------------------------------------------------
+  //
+  // Einer steht (Mira hat vorgeschlagen, Tom hat zugesagt), einer wartet auf
+  // eine Antwort. So sieht man beide Zustaende sofort - im Verlauf und im
+  // Kalender.
+
+  await prisma.appointment.create({
+    data: {
+      requestId: angenommen.id,
+      proposedById: users["mira@schule.de"],
+      startsAt: inDaysAt(2, 15, 0),
+      durationMinutes: 60,
+      place: "Bibliothek",
+      status: "confirmed",
+      respondedAt: new Date(),
+    },
+  });
+
+  await prisma.appointment.create({
+    data: {
+      requestId: zweiteZusage.id,
+      proposedById: users["aylin@schule.de"],
+      startsAt: inDaysAt(3, 16, 0),
+      durationMinutes: 45,
+      place: "Raum 204",
+    },
+  });
+
   console.log("Fertig: 2 Schulen (Beitrittscodes GOETHE und HUMBOLDT),");
   console.log(`${people.length} Konten, ${offers.length} Nachhilfe-Angebote,`);
   console.log(`1 ausgewertetes Lernvorhaben mit ${plan.length} Lernaufgaben,`);
   console.log("3 angenommene Anfragen, davon eine mit Nachrichtenverlauf,");
-  console.log("3 Bewertungen (Mira 5 und 4, Tom 2, Jonas noch keine).");
+  console.log("3 Bewertungen (Mira 5 und 4, Tom 2, Jonas noch keine),");
+  console.log("2 Termine: einer zugesagt, einer wartet auf Antwort.");
   console.log(`Passwort fuer alle Konten: ${PASSWORD}`);
 }
 

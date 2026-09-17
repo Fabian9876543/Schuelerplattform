@@ -10,7 +10,8 @@ aufeinander aufbauen:
 2. **Nachhilfe unter Mitschülern** – wo die Auswertung Lücken zeigt, schlägt die
    App Mitschüler vor, die genau in diesem Fach und Thema helfen können. Eine
    Anfrage lässt sich direkt stellen, annehmen oder ablehnen; nach einer Zusage
-   schreiben sich die beiden in der App und geben hinterher eine Rückmeldung.
+   schreiben sich die beiden in der App, machen einen festen Termin aus und
+   geben hinterher eine Rückmeldung.
 
 Der zweite Punkt hängt am ersten: Die erkannten Defizite sind der Suchbegriff
 für die Tutorensuche.
@@ -45,7 +46,7 @@ Alle Beispielkonten haben das Passwort `geheim123`:
 |---|---|---|
 | `lena@schule.de` | Goethe-Gymnasium | hat eine fertig ausgewertete Mathe-Klausur mit Lernplan |
 | `jonas@schule.de` | Goethe-Gymnasium | gibt Nachhilfe in Mathe und Physik, offene Anfrage, noch keine Bewertung |
-| `mira@schule.de` | Goethe-Gymnasium | gibt Nachhilfe in Mathe bis Klasse 13, mit 5 und 4 Sternen bewertet |
+| `mira@schule.de` | Goethe-Gymnasium | gibt Nachhilfe in Mathe bis Klasse 13, mit 5 und 4 Sternen bewertet, ein Termin steht, einer wartet auf ihre Antwort |
 | `tom@schule.de` | Goethe-Gymnasium | angenommene Anfrage bei Mira mit Verlauf; gibt selbst Nachhilfe, mit 2 Sternen bewertet |
 | `paul@schule.de` | Goethe-Gymnasium | hat eine Anfrage an Jonas gestellt |
 | `nils@humboldt.de` | Humboldt-Schule | bietet dieselben Mathe-Themen an – für das Goethe-Gymnasium unsichtbar |
@@ -329,6 +330,39 @@ Was aus der Adresszeile kommt, wird geprüft: `?monat=2026-13`,
 `?tag=2026-02-30` oder blanker Unsinn führen zurück auf den laufenden Monat,
 nicht auf eine Fehlerseite.
 
+## Feste Termine
+
+Nach einer Zusage lässt sich im Verlauf ein Termin ausmachen: Tag und Uhrzeit,
+Dauer, wahlweise ein Ort. Zugesagte Termine stehen bei **beiden** im Kalender.
+
+- **Wer vorschlägt, sagt nicht selbst zu.** Sonst wäre der Termin einseitig
+  gesetzt und die Zusage ein leeres Wort. Absagen darf dagegen jeder, auch nach
+  der Zusage – ein abgesagter Termin wird nicht gelöscht, sondern bleibt als
+  `cancelled` stehen, damit nachvollziehbar ist, dass es ihn gab.
+- **Doppelbelegung wird abgefangen** – aber nur gegen die **eigenen zugesagten**
+  Termine. Würde die App auch den Kalender der anderen Person prüfen, verriete
+  eine Absage, dass sie zu der Zeit schon etwas vorhat; mit wem, wäre schnell
+  geraten. Ob es der anderen Seite passt, sagt sie selbst – dafür gibt es die
+  Zusage. Ein bloßer Vorschlag blockiert nichts: Erst eine Zusage ist eine
+  Verabredung.
+- **Termine dürfen aneinander anschließen.** 15:00–16:00 und 16:00–17:00 sind
+  keine Überschneidung, sonst ließe sich kein Doppelblock legen.
+- **15 bis 240 Minuten, auch für die Datenbank** (`CHECK`), und der Status ist
+  ein echter `enum`-Typ. Eine Lerneinheit von zwei Minuten oder von zwei Tagen
+  kommt damit auf keinem Weg herein.
+
+### Uhrzeiten sind Wanduhrzeiten
+
+`startsAt` ist bewusst **kein** Zeitpunkt mit Zeitzone. Eingabe und Anzeige
+laufen beide auf dem Server, deshalb kommt heraus, was eingetippt wurde – auch
+wenn der Server in einer anderen Zeitzone läuft als die Schule. Aus demselben
+Grund formatiert der Browser die Zeiten nicht selbst: Er würde sie in der
+Zeitzone des Geräts zeigen und damit womöglich eine andere Uhrzeit als
+vereinbart.
+
+Ein echter Zeitpunkt mit Zeitzone wäre erst nötig, wenn sich Leute über
+Zeitzonen hinweg verabreden. Innerhalb einer Schule tut das niemand.
+
 ## Bewertungen
 
 Nach einer Zusage gibt die anfragende Person eine Rückmeldung: ein bis fünf
@@ -410,6 +444,8 @@ lib/
   messages-db.ts     die Abfragen dazu, jede mit Nutzerprüfung
   ratings.ts         Sternschnitt und das Gewicht in der Trefferliste
   ratings-db.ts      die Abfragen dazu
+  appointments.ts    Termine: einlesen, Überschneidung, wer darf zusagen
+  appointments-db.ts die Abfragen dazu, samt Doppelbelegung
   auth.ts            E-Mail/Passwort-Anmeldung mit Session-Cookie
 prisma/              Datenmodell, Migrationen, Beispieldaten
 tests/               Vitest-Tests für die Logik
@@ -421,9 +457,10 @@ Schreibzugriffe laufen über Route Handler mit Zod-Validierung.
 ## Tests
 
 ```bash
-npm test         # 83 Tests: Terminverteilung, Matching, Fallback, KI-Schemas,
+npm test         # 97 Tests: Terminverteilung, Matching, Fallback, KI-Schemas,
                  #            Umplanung, Grenzwerte, Zugang zu Verläufen,
-                 #            Gewicht der Bewertungen, Kalenderrechnung
+                 #            Gewicht der Bewertungen, Kalenderrechnung,
+                 #            Terminregeln und Überschneidungen
 npm run build    # Typprüfung und Produktionsbuild
 ```
 
@@ -439,7 +476,8 @@ Die Tests brauchen keinen API-Schlüssel.
   kennt der Client das neue Feld nicht – auch dann, wenn die Migration schon
   durch ist.
 - **Status- und Typfelder** sind echte `enum`-Typen in der Datenbank
-  (`AssessmentStatus`, `QuestionKind`, `EvaluationSource`, `RequestStatus`).
+  (`AssessmentStatus`, `QuestionKind`, `EvaluationSource`, `RequestStatus`,
+  `MasteryLevel`, `AppointmentStatus`).
   Die Datenbank lässt keinen ungültigen Wert zu, Prisma erzeugt daraus die
   TypeScript-Typen, und `lib/constants.ts` leitet die Zod-Schemas davon ab –
   eine Quelle statt zwei.
@@ -451,7 +489,6 @@ Die Tests brauchen keinen API-Schlüssel.
 
 ## Was als Nächstes sinnvoll wäre
 
-- Terminvereinbarung: feste Zeiten statt einer Absprache im Text
 - Rückmeldung nach der Klausur, um die Treffsicherheit der Auswertung zu prüfen
 - Verwaltung durch die Schule: wer als Lernhelfer zugelassen ist, welche Fächer
   angeboten werden

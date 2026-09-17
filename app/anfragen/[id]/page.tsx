@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 
+import { AppointmentsPanel } from "@/app/anfragen/[id]/appointments-panel";
 import { MessageThread } from "@/app/anfragen/[id]/message-thread";
 import { RatingForm } from "@/app/anfragen/[id]/rating-form";
 import { StatusBadge } from "@/app/anfragen/status-badge";
@@ -8,6 +9,12 @@ import { Stars } from "@/components/stars";
 import { Card, PageTitle } from "@/components/ui";
 import { requireUser } from "@/lib/auth";
 import { formatDate } from "@/lib/format";
+import {
+  canPropose,
+  formatAppointment,
+  isPast,
+  toLocalDateTimeValue,
+} from "@/lib/appointments";
 import { canWrite } from "@/lib/messages";
 import { counterpart, loadThread, markThreadRead } from "@/lib/messages-db";
 import { canRate } from "@/lib/ratings";
@@ -39,6 +46,14 @@ export default async function ThreadPage({ params }: { params: Promise<{ id: str
   const gegenueber = counterpart(thread);
   const darfSchreiben = canWrite(request.status);
   const darfBewerten = canRate(request.status, role === "requester");
+  const darfPlanen = canPropose(request.status);
+
+  // Vorschlag standardmaessig auf morgen Nachmittag - der haeufigste Fall,
+  // und niemand muss sich durch den Kalender klicken.
+  const jetzt = new Date();
+  const vorschlagAb = new Date(jetzt);
+  vorschlagAb.setDate(vorschlagAb.getDate() + 1);
+  vorschlagAb.setHours(15, 0, 0, 0);
 
   return (
     <div className="space-y-6">
@@ -74,6 +89,33 @@ export default async function ThreadPage({ params }: { params: Promise<{ id: str
           </>
         ) : null}
       </Card>
+
+      {darfPlanen ? (
+        <Card>
+          <h2 className="mb-1 font-medium text-slate-900">Termine</h2>
+          <p className="mb-3 text-sm text-slate-600">
+            Wer vorschlaegt, sagt nicht selbst zu - so steht ein Termin erst, wenn beide
+            einverstanden sind. Zugesagte Termine stehen in eurem Kalender.
+          </p>
+          <AppointmentsPanel
+            requestId={request.id}
+            partnerName={gegenueber.name}
+            defaultStart={toLocalDateTimeValue(vorschlagAb)}
+            minStart={toLocalDateTimeValue(jetzt)}
+            termine={request.meetings.map((termin) => ({
+              id: termin.id,
+              // Auf dem Server formatiert: Im Browser haenge die Uhrzeit sonst
+              // an der Zeitzone des Geraets.
+              label: formatAppointment(termin),
+              place: termin.place,
+              status: termin.status,
+              mine: termin.proposedById === user.id,
+              proposerName: termin.proposedBy.name,
+              past: isPast(termin.startsAt, jetzt),
+            }))}
+          />
+        </Card>
+      ) : null}
 
       <Card>
         <h2 className="mb-3 font-medium text-slate-900">Nachrichten</h2>

@@ -37,12 +37,14 @@ export const subjectSchema = z.enum(SUBJECTS);
  * etwas durchlaesst, das die Datenbank anschliessend ablehnen wuerde.
  */
 export {
+  AppointmentStatus,
   AssessmentStatus,
   EvaluationSource,
   QuestionKind,
   RequestStatus,
 } from "@/lib/generated/prisma/enums";
 
+export const appointmentStatusSchema = z.enum(PrismaEnums.AppointmentStatus);
 export const assessmentStatusSchema = z.enum(PrismaEnums.AssessmentStatus);
 export const questionKindSchema = z.enum(PrismaEnums.QuestionKind);
 export const requestStatusSchema = z.enum(PrismaEnums.RequestStatus);
