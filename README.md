@@ -45,6 +45,29 @@ Datenbank anlegen, die angezeigte Verbindungszeichenfolge in die `.env` als
 `DATABASE_URL` eintragen. Dieselbe Zeichenfolge lässt sich später beim Hosting
 hinterlegen.
 
+Bei Neon geht das auch ohne Kopieren: `npm i -g neon && neon login`, dann
+`neon link --project-id <deine-projekt-id>` im Projektverzeichnis. Das schreibt
+`DATABASE_URL`, `DATABASE_URL_UNPOOLED` und `NEON_BRANCH` selbst in die `.env`.
+
+### Gepoolt oder direkt
+
+Neon liefert zwei Verbindungen, und der Unterschied ist keine Feinheit:
+
+| Variable | Weg | Wofür |
+|---|---|---|
+| `DATABASE_URL` | über den Verbindungspooler | die laufende App – viele kurze Anfragen, wenige Verbindungen |
+| `DATABASE_URL_UNPOOLED` | direkt auf die Datenbank | Migrationen und das Seeding |
+
+`prisma.config.ts` nimmt deshalb `DATABASE_URL_UNPOOLED`, sobald es gesetzt
+ist, und fällt sonst auf `DATABASE_URL` zurück – `npm run db:deploy` läuft
+damit von allein über den richtigen Weg. Die App selbst (`lib/db.ts`) bleibt
+bei `DATABASE_URL`. Lokal gibt es nur die eine Verbindung, dort ändert sich
+nichts.
+
+Scheitert eine Migration trotzdem mit einer Meldung über *prepared statements*,
+läuft sie über den Pooler: Dann steht `-pooler` im Hostnamen der
+`DATABASE_URL`, und `DATABASE_URL_UNPOOLED` fehlt.
+
 **Lokal auf dem Mac**: [Postgres.app](https://postgresapp.com) installieren,
 starten, dann `createdb schuelerplattform`. Die `DATABASE_URL` lautet dann
 `postgresql://<dein-benutzername>@localhost:5432/schuelerplattform`.
