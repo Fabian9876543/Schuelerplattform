@@ -17,3 +17,25 @@ body {
   background-color: #f8fafc;
   color: #0f172a;
 }
+
+/*
+ * Nur im installierten Zustand (vom Home-Bildschirm gestartet): Die Seite
+ * reicht dann bis in die Ecken des Displays, weil viewportFit auf "cover"
+ * steht. Diese Abstaende halten Notch, abgerundete Ecken und die
+ * Home-Leiste frei. Im Browser greift nichts davon - dort gibt es diese
+ * Bereiche nicht.
+ */
+@media (display-mode: standalone) {
+  body {
+    padding-left: env(safe-area-inset-left);
+    padding-right: env(safe-area-inset-right);
+  }
+
+  .kopfzeile {
+    padding-top: calc(0.75rem + env(safe-area-inset-top));
+  }
+
+  .fusszeile {
+    padding-bottom: calc(2.5rem + env(safe-area-inset-bottom));
+  }
+}

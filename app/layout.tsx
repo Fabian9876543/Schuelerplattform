@@ -1,5 +1,6 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 
+import { ServiceWorker } from "@/components/service-worker";
 import { SiteHeader } from "@/components/site-header";
 import { getCurrentUser } from "@/lib/auth";
 import { unreadTotal } from "@/lib/messages-db";
@@ -10,6 +11,23 @@ import "./globals.css";
 export const metadata: Metadata = {
   title: "Schuelerplattform",
   description: "Lernplan mit Auswertung und Nachhilfe von Mitschuelern",
+  // Laesst iOS die App vom Home-Bildschirm im Vollbild starten. Das Manifest
+  // sagt dasselbe; aeltere iOS-Fassungen lesen nur diese Angabe.
+  appleWebApp: { capable: true, statusBarStyle: "default", title: "Lernplan" },
+  // Next.js schreibt daraus das standardisierte "mobile-web-app-capable".
+  // iOS vor 16.4 kennt nur die Apple-Schreibweise und startet sonst mit
+  // Adressleiste - in einer Schulklasse sind auch aeltere Geraete unterwegs.
+  other: { "apple-mobile-web-app-capable": "yes" },
+};
+
+export const viewport: Viewport = {
+  width: "device-width",
+  initialScale: 1,
+  themeColor: "#4f46e5",
+  // Die Seite reicht bis in die Ecken - auch unter die Notch. Damit dort
+  // nichts verdeckt wird, halten die Abstaende in globals.css die
+  // Sicherheitsbereiche frei.
+  viewportFit: "cover",
 };
 
 export default async function RootLayout({ children }: { children: React.ReactNode }) {
@@ -26,9 +44,10 @@ export default async function RootLayout({ children }: { children: React.ReactNo
       <body className="min-h-screen antialiased">
         <SiteHeader user={user} unread={unread} offeneMeldungen={offeneMeldungen} />
         <main className="mx-auto w-full max-w-5xl px-4 py-8">{children}</main>
-        <footer className="mx-auto w-full max-w-5xl px-4 pb-10 text-sm text-slate-500">
+        <footer className="fusszeile mx-auto w-full max-w-5xl px-4 pb-10 text-sm text-slate-500">
           Schuelerplattform &ndash; Lernplanung und Nachhilfe unter Mitschuelern.
         </footer>
+        <ServiceWorker />
       </body>
     </html>
   );

@@ -89,7 +89,37 @@ Alle Beispielkonten haben das Passwort `geheim123`:
 Melde dich als Lena an und suche Nachhilfe in Mathematik: Nils und Sara tauchen
 nicht auf, obwohl sie genau diese Themen anbieten. Als Nils ist es umgekehrt.
 
-## Auf dem Handy ausprobieren
+## Als App auf dem Handy
+
+Die App lässt sich auf den Home-Bildschirm legen und startet dann im Vollbild,
+ohne Adressleiste, mit eigenem Eintrag im App-Umschalter – eine
+**Progressive Web App**. Dafür braucht es keinen App Store und keine zweite
+Codebasis.
+
+- **iPhone / iPad**: Seite in Safari öffnen → Teilen → „Zum Home-Bildschirm"
+- **Android**: Chrome bietet „App installieren" von selbst an
+
+Was dahintersteckt, ist bewusst wenig:
+
+| Datei | Zweck |
+|---|---|
+| `app/manifest.ts` | Name, Farben, `display: "standalone"` fürs Vollbild |
+| `public/icon-*.png`, `app/apple-icon.png` | Symbole; die maskable-Fassung ist randlos, weil Android in seine eigene Form zuschneidet |
+| `viewport` in `app/layout.tsx` | `viewportFit: "cover"`, damit die Seite bis in die Ecken reicht |
+| `@media (display-mode: standalone)` in `globals.css` | hält Notch und Home-Leiste frei – im Browser ohne Wirkung |
+| `public/sw.js` | Service Worker: **nur** eine Offline-Seite, sonst nichts |
+
+Der Service Worker speichert absichtlich **keine** Skripte und keine Antworten
+der Schnittstellen zwischen. Ein zu gieriger Zwischenspeicher ist die häufigste
+Ursache dafür, dass eine installierte App nach einem Update alte Inhalte
+zeigt – und der Fehler ist schwer zu finden. Gebraucht wird er trotzdem: Ohne
+Service Worker bietet Android das Installieren nicht an.
+
+**Push-Nachrichten** („Termin morgen um 15:00") sind damit möglich, aber nicht
+gebaut. Auf iPhone und iPad gehen sie seit 16.4 nur, wenn die App vorher zum
+Home-Bildschirm hinzugefügt wurde.
+
+## Auf dem Handy ausprobieren (Entwicklung)
 
 Die Oberfläche ist für kleine Displays ausgelegt – geprüft auf 390 px Breite,
 ohne horizontales Scrollen.
@@ -271,20 +301,32 @@ testbar statt vom Modell abhängig.
 Die App läuft auf jedem Hosting, das Node ausführt; mit Next.js ist
 [Vercel](https://vercel.com) am direktesten.
 
-1. **Datenbank**: bei Neon oder Supabase eine Postgres-Datenbank anlegen und die
-   Verbindungszeichenfolge kopieren.
-2. **Projekt verbinden**: das GitHub-Repository bei Vercel importieren.
+1. **Datenbank**: bei Neon oder Supabase eine Postgres-Datenbank anlegen und
+   **beide** Verbindungszeichenfolgen kopieren (siehe
+   [Gepoolt oder direkt](#gepoolt-oder-direkt)).
+2. **Projekt verbinden**: das GitHub-Repository bei Vercel importieren. Der
+   Standardbranch des Repositories wird automatisch der Produktionsbranch;
+   jeder Push dorthin löst ein neues Deployment aus.
 3. **Umgebungsvariablen** setzen:
-   - `DATABASE_URL` – die Zeichenfolge aus Schritt 1
+   - `DATABASE_URL` – die **gepoolte** Zeichenfolge, für die laufende App
+   - `DATABASE_URL_UNPOOLED` – die **direkte**, für die Migrationen
    - `ANTHROPIC_API_KEY` – ohne ihn läuft nur die regelbasierte Auswertung
-4. **Tabellen anlegen**: einmalig `npx prisma migrate deploy` gegen die
-   Produktionsdatenbank ausführen (oder `npm run db:deploy` mit gesetzter
-   `DATABASE_URL`). In Produktion **nicht** `migrate dev` benutzen – das ist für
-   die Entwicklung gedacht und kann Daten verwerfen.
+
+Die Tabellen legt das Deployment selbst an: Vercel führt `vercel-build` aus,
+wenn es das Skript gibt, und das ist hier `prisma migrate deploy && next build`.
+Jedes Deployment bringt die Datenbank damit auf den Stand des Codes, und
+`npm run build` bleibt lokal unverändert. Schlägt die Migration fehl, schlägt
+das Deployment fehl – das ist Absicht: Eine App gegen ein veraltetes Schema
+laufen zu lassen wäre schlimmer.
 
 Der `postinstall`-Schritt erzeugt den Prisma-Client beim Deployment automatisch.
 Ohne ihn schlägt der Build fehl, weil Hosting-Plattformen `node_modules`
 zwischenspeichern und der generierte Client darin liegt.
+
+**Die Beispieldaten** kommen nicht mit: `npm run seed` läuft beim Deployment
+nicht. Willst du sie in der öffentlichen Instanz haben (für eine Vorführung),
+dann einmal lokal mit den Produktions-Zeichenfolgen in der `.env` ausführen.
+Für den echten Einsatz gehören sie dort nicht hin.
 
 **Vor dem ersten echten Einsatz** noch bedenken: Die Beispielkonten aus
 `npm run seed` gehören nicht in eine öffentliche Instanz – dort das Seeding

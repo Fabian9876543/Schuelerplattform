@@ -32,7 +32,7 @@ export function SiteHeader({
 }) {
   return (
     <header className="relative border-b border-slate-200 bg-white">
-      <div className="mx-auto flex w-full max-w-5xl flex-wrap items-center gap-x-6 gap-y-2 px-4 py-3">
+      <div className="kopfzeile mx-auto flex w-full max-w-5xl flex-wrap items-center gap-x-6 gap-y-2 px-4 py-3">
         <Link href="/" className="text-lg font-semibold text-slate-900">
           Schuelerplattform
         </Link>
