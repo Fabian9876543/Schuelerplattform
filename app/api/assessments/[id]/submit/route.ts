@@ -167,6 +167,14 @@ export async function POST(request: Request, context: { params: Promise<{ id: st
         },
       }),
       prisma.assessment.update({ where: { id: assessment.id }, data: { status: "evaluated" } }),
+      // Anfangs-Lernstand je Thema aus der Auswertung: Was keine Luecke
+      // zeigt, sitzt; eine leichte Luecke ist mittel, alles darueber rot.
+      // Ab hier pflegt die Schuelerin den Stand selbst weiter.
+      ...goal.topics.map((topic) => {
+        const deficit = validDeficits.find((d) => d.topicId === topic.id);
+        const mastery = !deficit ? "strong" : deficit.severity === 1 ? "medium" : "weak";
+        return prisma.topic.update({ where: { id: topic.id }, data: { mastery } });
+      }),
     ]);
 
     return ok({ goalId: goal.id, source: result.source, deficits: validDeficits.length });

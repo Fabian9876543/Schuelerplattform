@@ -3,11 +3,12 @@ import { notFound } from "next/navigation";
 
 import { StartAssessment } from "@/app/lernplan/[id]/start-assessment";
 import { StudyPlan } from "@/app/lernplan/[id]/study-plan";
+import { TopicMastery } from "@/app/lernplan/[id]/topic-mastery";
 import { Card, EmptyState, LinkButton, PageTitle, SeverityBadge } from "@/components/ui";
 import { requireUser } from "@/lib/auth";
 import { prisma } from "@/lib/db";
 import { describeCountdown, formatDate } from "@/lib/format";
-import { daysBetween } from "@/lib/planning";
+import { daysBetween, progressPercent, type Mastery } from "@/lib/planning";
 
 export default async function GoalPage({ params }: { params: Promise<{ id: string }> }) {
   const user = await requireUser();
@@ -34,6 +35,7 @@ export default async function GoalPage({ params }: { params: Promise<{ id: strin
   if (!goal || goal.userId !== user.id) notFound();
 
   const days = daysBetween(new Date(), goal.examDate);
+  const fortschritt = progressPercent(goal.topics.map((t) => t.mastery as Mastery));
   const latest = goal.assessments[0];
   const evaluation = latest?.evaluation;
 
@@ -45,17 +47,36 @@ export default async function GoalPage({ params }: { params: Promise<{ id: strin
       />
 
       <Card className="mb-6">
-        <h2 className="mb-2 font-medium text-slate-900">Themen</h2>
-        <div className="flex flex-wrap gap-2">
-          {goal.topics.map((topic) => (
-            <span
-              key={topic.id}
-              className="rounded-full bg-slate-100 px-3 py-1 text-sm text-slate-700"
-            >
-              {topic.name}
-            </span>
-          ))}
+        <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
+          <h2 className="font-medium text-slate-900">Dein Lernstand</h2>
+          <span className="text-sm text-slate-600">{fortschritt} % geschafft</span>
         </div>
+
+        <div
+          className="mb-4 h-2 w-full overflow-hidden rounded-full bg-slate-100"
+          role="progressbar"
+          aria-valuenow={fortschritt}
+          aria-valuemin={0}
+          aria-valuemax={100}
+          aria-label="Lernfortschritt"
+        >
+          <div
+            className="h-full rounded-full bg-brand-500 transition-all"
+            style={{ width: `${fortschritt}%` }}
+          />
+        </div>
+
+        <TopicMastery
+          topics={goal.topics.map((topic) => ({
+            id: topic.id,
+            name: topic.name,
+            mastery: topic.mastery as Mastery,
+          }))}
+        />
+        <p className="mt-3 text-xs text-slate-500">
+          Stell die Ampel um, sobald sich etwas geaendert hat. Der Lernplan rechnet sich
+          daraufhin neu - was sitzt, faellt weg, und Liegengebliebenes rutscht nach vorn.
+        </p>
       </Card>
 
       {!evaluation ? (
@@ -99,7 +120,11 @@ export default async function GoalPage({ params }: { params: Promise<{ id: strin
 
           <section>
             <h2 className="mb-3 text-lg font-medium text-slate-900">
-              {evaluation.deficits.length > 0 ? "Wo es noch hakt" : "Keine Luecken gefunden"}
+              {evaluation.deficits.some((d) => d.topic.mastery !== "strong")
+                ? "Wo es noch hakt"
+                : evaluation.deficits.length > 0
+                  ? "Alle Luecken abgehakt"
+                  : "Keine Luecken gefunden"}
             </h2>
 
             {evaluation.deficits.length === 0 ? (
@@ -109,25 +134,43 @@ export default async function GoalPage({ params }: { params: Promise<{ id: strin
               </EmptyState>
             ) : (
               <div className="space-y-3">
-                {evaluation.deficits.map((deficit) => (
-                  <Card key={deficit.id}>
-                    <div className="flex flex-wrap items-start justify-between gap-3">
-                      <div className="flex-1">
-                        <div className="flex items-center gap-2">
-                          <h3 className="font-medium text-slate-900">{deficit.topic.name}</h3>
-                          <SeverityBadge severity={deficit.severity} />
+                {evaluation.deficits.map((deficit) => {
+                  // Die Luecken stammen aus der Auswertung von damals. Steht die
+                  // Ampel inzwischen auf gruen, waere "gravierende Luecke" mit
+                  // Nachhilfe-Knopf ein Widerspruch zum eigenen Lernstand.
+                  const erledigt = deficit.topic.mastery === "strong";
+                  return (
+                    <Card key={deficit.id} className={erledigt ? "opacity-60" : ""}>
+                      <div className="flex flex-wrap items-start justify-between gap-3">
+                        <div className="flex-1">
+                          <div className="flex flex-wrap items-center gap-2">
+                            <h3 className="font-medium text-slate-900">{deficit.topic.name}</h3>
+                            {erledigt ? (
+                              <span className="rounded-full border border-emerald-200 bg-emerald-50 px-2.5 py-0.5 text-xs font-medium text-emerald-700">
+                                inzwischen erledigt
+                              </span>
+                            ) : (
+                              <SeverityBadge severity={deficit.severity} />
+                            )}
+                          </div>
+                          <p className="mt-1 text-sm text-slate-600">
+                            {erledigt
+                              ? `Damals erkannt: ${deficit.explanation}`
+                              : deficit.explanation}
+                          </p>
                         </div>
-                        <p className="mt-1 text-sm text-slate-600">{deficit.explanation}</p>
+                        {erledigt ? null : (
+                          <Link
+                            href={`/nachhilfe?subject=${encodeURIComponent(goal.subject)}&topic=${encodeURIComponent(deficit.topic.name)}&deficit=${deficit.id}`}
+                            className="rounded-md border border-brand-200 bg-brand-50 px-3 py-1.5 text-sm font-medium text-brand-700 hover:bg-brand-100"
+                          >
+                            Nachhilfe finden
+                          </Link>
+                        )}
                       </div>
-                      <Link
-                        href={`/nachhilfe?subject=${encodeURIComponent(goal.subject)}&topic=${encodeURIComponent(deficit.topic.name)}&deficit=${deficit.id}`}
-                        className="rounded-md border border-brand-200 bg-brand-50 px-3 py-1.5 text-sm font-medium text-brand-700 hover:bg-brand-100"
-                      >
-                        Nachhilfe finden
-                      </Link>
-                    </div>
-                  </Card>
-                ))}
+                    </Card>
+                  );
+                })}
               </div>
             )}
           </section>
@@ -147,6 +190,7 @@ export default async function GoalPage({ params }: { params: Promise<{ id: strin
                   dueDate: task.dueDate.toISOString(),
                   estimatedMinutes: task.estimatedMinutes,
                   done: task.done,
+                  skipped: task.skipped,
                   topicName: task.topic?.name ?? null,
                 }))}
               />

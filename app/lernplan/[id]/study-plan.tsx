@@ -11,16 +11,20 @@ interface Task {
   dueDate: string;
   estimatedMinutes: number;
   done: boolean;
+  skipped: boolean;
   topicName: string | null;
 }
 
 export function StudyPlan({ tasks }: { tasks: Task[] }) {
-  const [state, setState] = useState(tasks);
+  // Die Aufgaben kommen aus den Props und bleiben es auch: Ein useState(tasks)
+  // wuerde den ersten Stand einfrieren, sodass Aenderungen von aussen - etwa
+  // weil ein Thema jetzt sitzt und Aufgaben entfallen - nie ankaemen.
+  // Lokal liegt nur das eigene Abhaken, damit es sich sofort anfuehlt.
+  const [eigeneHaken, setEigeneHaken] = useState<Record<string, boolean>>({});
+  const state = tasks.map((task) => ({ ...task, done: eigeneHaken[task.id] ?? task.done }));
 
   async function toggle(id: string, done: boolean) {
-    // Sofort umschalten, damit sich das Abhaken direkt anfuehlt; bei einem
-    // Fehler wird zurueckgesetzt.
-    setState((current) => current.map((task) => (task.id === id ? { ...task, done } : task)));
+    setEigeneHaken((current) => ({ ...current, [id]: done }));
 
     const response = await fetch(`/api/tasks/${id}`, {
       method: "PATCH",
@@ -29,7 +33,12 @@ export function StudyPlan({ tasks }: { tasks: Task[] }) {
     });
 
     if (!response.ok) {
-      setState((current) => current.map((task) => (task.id === id ? { ...task, done: !done } : task)));
+      // Zurueck auf den Stand, den der Server kennt.
+      setEigeneHaken((current) => {
+        const rest = { ...current };
+        delete rest[id];
+        return rest;
+      });
     }
   }
 
@@ -43,14 +52,17 @@ export function StudyPlan({ tasks }: { tasks: Task[] }) {
   }
 
   const days = [...byDay.entries()].sort(([a], [b]) => a.localeCompare(b));
-  const doneCount = state.filter((task) => task.done).length;
-  const totalMinutes = state.reduce((sum, task) => sum + (task.done ? 0 : task.estimatedMinutes), 0);
+  const aktiv = state.filter((task) => !task.skipped);
+  const doneCount = aktiv.filter((task) => task.done).length;
+  const skippedCount = state.filter((task) => task.skipped).length;
+  const totalMinutes = aktiv.reduce((sum, task) => sum + (task.done ? 0 : task.estimatedMinutes), 0);
 
   return (
     <div>
       <div className="mb-4 flex flex-wrap items-center justify-between gap-2 text-sm text-slate-600">
         <span>
-          {doneCount} von {state.length} Aufgaben erledigt
+          {doneCount} von {aktiv.length} Aufgaben erledigt
+          {skippedCount > 0 ? ` · ${skippedCount} entfallen, weil das Thema sitzt` : ""}
         </span>
         <span>Noch etwa {formatMinutes(totalMinutes)} Lernzeit</span>
       </div>
@@ -65,17 +77,20 @@ export function StudyPlan({ tasks }: { tasks: Task[] }) {
               {dayTasks.map((task) => (
                 <label
                   key={task.id}
-                  className={`flex cursor-pointer gap-3 rounded-lg border p-4 transition ${
-                    task.done
-                      ? "border-slate-200 bg-slate-50"
-                      : "border-slate-200 bg-white hover:border-brand-200"
+                  className={`flex gap-3 rounded-lg border p-4 transition ${
+                    task.skipped
+                      ? "border-dashed border-emerald-200 bg-emerald-50/40"
+                      : task.done
+                        ? "cursor-pointer border-slate-200 bg-slate-50"
+                        : "cursor-pointer border-slate-200 bg-white hover:border-brand-200"
                   }`}
                 >
                   <input
                     type="checkbox"
                     checked={task.done}
+                    disabled={task.skipped}
                     onChange={(event) => toggle(task.id, event.target.checked)}
-                    className="mt-1 h-4 w-4 shrink-0 accent-indigo-600"
+                    className="mt-1 h-4 w-4 shrink-0 accent-indigo-600 disabled:opacity-40"
                   />
                   <div className="min-w-0">
                     <div className="flex flex-wrap items-center gap-2">
@@ -87,6 +102,11 @@ export function StudyPlan({ tasks }: { tasks: Task[] }) {
                       <span className="text-xs text-slate-500">
                         {formatMinutes(task.estimatedMinutes)}
                       </span>
+                      {task.skipped ? (
+                        <span className="rounded-full bg-emerald-100 px-2 py-0.5 text-xs font-medium text-emerald-700">
+                          entfallen &ndash; Thema sitzt
+                        </span>
+                      ) : null}
                     </div>
                     <p className={`mt-1 text-sm ${task.done ? "text-slate-400" : "text-slate-600"}`}>
                       {task.description}

@@ -36,6 +36,13 @@ enum EvaluationSource {
   rule
 }
 
+/// Wie sicher ein Teilthema sitzt - die Ampel aus dem Lernplan.
+enum MasteryLevel {
+  weak
+  medium
+  strong
+}
+
 /// Stand einer Nachhilfe-Anfrage.
 enum RequestStatus {
   open
@@ -111,6 +118,10 @@ model Topic {
   /// kleingeschrieben und normalisiert - Schluessel fuer das Tutoren-Matching
   normalized     String
   position       Int
+  /// Lernstand: anfangs aus der Auswertung abgeleitet, danach vom Schueler
+  /// selbst gepflegt. Steuert, welche Lernaufgaben noch noetig sind.
+  mastery        MasteryLevel @default(weak)
+  masteryUpdatedAt DateTime?
 
   learningGoal LearningGoal @relation(fields: [learningGoalId], references: [id], onDelete: Cascade)
   questions    Question[]
@@ -223,6 +234,9 @@ model StudyTask {
   description      String
   estimatedMinutes Int
   done             Boolean  @default(false)
+  /// Entfaellt, weil das Thema inzwischen sitzt. Bleibt erhalten statt
+  /// geloescht zu werden - wackelt das Thema wieder, lebt die Aufgabe auf.
+  skipped          Boolean  @default(false)
 
   evaluation Evaluation @relation(fields: [evaluationId], references: [id], onDelete: Cascade)
   topic      Topic?     @relation(fields: [topicId], references: [id], onDelete: SetNull)

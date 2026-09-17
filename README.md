@@ -186,6 +186,34 @@ Aufrufen `output_config: { effort: "medium" }` ergänzen – das senkt Dauer und
 Kosten, kann aber die Qualität der Fragen kosten. Vorher und nachher mit
 `npm run ki-probe` vergleichen, nicht auf Verdacht ändern.
 
+## Lernstand und Neuplanung
+
+Der Lernplan ist kein einmaliger Wurf. Jedes Teilthema hat eine Ampel, die
+zunächst aus der Auswertung abgeleitet wird und die der Schüler danach selbst
+pflegt:
+
+| Ampel | Bedeutung | Wirkung auf den Plan |
+|---|---|---|
+| rot | sitzt noch nicht | Aufgaben bleiben |
+| gelb | wird langsam | Aufgaben bleiben |
+| grün | sitzt | offene Aufgaben zu diesem Thema entfallen |
+
+Wird ein Thema zurückgestuft, leben die Aufgaben wieder auf – sie werden nicht
+gelöscht, sondern nur als entfallen markiert. Gleichzeitig rutscht
+Liegengebliebenes nach vorn: Aufgaben, deren Termin verstrichen ist, verteilen
+sich auf die kommenden Tage, höchstens zwei pro Tag und nie über das
+Klausurdatum hinaus.
+
+Der Fortschritt in Prozent ist der Durchschnitt über alle Ampeln
+(rot 0, gelb 50, grün 100) und steht auf der Klausurseite wie auf der
+Übersicht, dort zusätzlich als farbiger Punkt je Klausur.
+
+Auch diese Terminlogik rechnet der Code und nicht die KI – sie steckt in
+`replan()` in `lib/planning.ts` und ist dort mit elf Fällen abgedeckt, unter
+anderem: nichts wird auf oder hinter den Klausurtag geschoben, erledigte
+Aufgaben bleiben unberührt, und es wird nichts verschoben, was ohnehin
+entfällt.
+
 ## Wie der Lernplan entsteht
 
 Die KI liefert nur, **was** gelernt werden muss und wie gravierend die Lücke

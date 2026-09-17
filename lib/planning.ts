@@ -175,3 +175,104 @@ export function buildStudyPlan(
 
   return tasks.sort((a, b) => a.dueDate.getTime() - b.dueDate.getTime());
 }
+
+// --- Neuplanung ------------------------------------------------------------
+
+/**
+ * Der Lernplan ist kein einmaliger Wurf: Sitzt ein Thema, sollen die Aufgaben
+ * dazu entfallen; wackelt es wieder, leben sie auf. Und was liegen geblieben
+ * ist, rutscht nach vorn statt in der Vergangenheit zu verstauben.
+ *
+ * Auch das rechnet bewusst der Code und nicht die KI - es ist reine Terminlogik
+ * und soll nachvollziehbar und testbar bleiben.
+ */
+
+export type Mastery = "weak" | "medium" | "strong";
+
+export interface ReplanTask {
+  id: string;
+  topicId: string | null;
+  dueDate: Date;
+  done: boolean;
+  skipped: boolean;
+}
+
+export interface ReplanResult {
+  /** Aufgaben, die entfallen, weil das Thema jetzt sitzt */
+  skip: string[];
+  /** Aufgaben, die wieder gebraucht werden, weil das Thema wackelt */
+  unskip: string[];
+  /** Liegengebliebene Aufgaben mit ihrem neuen Termin */
+  move: { id: string; dueDate: Date }[];
+}
+
+/** Wie viele offene Aufgaben an einem Tag zumutbar sind. */
+const MAX_PRO_TAG = 2;
+
+/** Punkte je Ampelstufe - Grundlage fuer den Fortschritt in Prozent. */
+const PUNKTE: Record<Mastery, number> = { weak: 0, medium: 50, strong: 100 };
+
+/**
+ * Fortschritt ueber alle Teilthemen, 0 bis 100.
+ * Ohne Themen ist er 0 und nicht etwa 100 - nichts gelernt ist nicht fertig.
+ */
+export function progressPercent(masteries: Mastery[]): number {
+  if (masteries.length === 0) return 0;
+  const summe = masteries.reduce((s, m) => s + PUNKTE[m], 0);
+  return Math.round(summe / masteries.length);
+}
+
+export function replan(
+  tasks: ReplanTask[],
+  masteryByTopic: Map<string, Mastery>,
+  examDate: Date,
+  today: Date = new Date(),
+): ReplanResult {
+  const heute = atNoon(today);
+  const exam = atNoon(examDate);
+  const result: ReplanResult = { skip: [], unskip: [], move: [] };
+
+  const sitzt = (topicId: string | null) =>
+    topicId !== null && masteryByTopic.get(topicId) === "strong";
+
+  // Was entfaellt, was lebt wieder auf?
+  for (const task of tasks) {
+    if (task.done) continue;
+    if (!task.skipped && sitzt(task.topicId)) result.skip.push(task.id);
+    else if (task.skipped && !sitzt(task.topicId)) result.unskip.push(task.id);
+  }
+
+  const entfaellt = new Set(result.skip);
+  const lebtAuf = new Set(result.unskip);
+  const bleibtAktiv = (task: ReplanTask) =>
+    !task.done && !entfaellt.has(task.id) && (!task.skipped || lebtAuf.has(task.id));
+
+  // Belegung der kommenden Tage zaehlen, damit nichts uebereinandergestapelt
+  // wird. Gelernt wird bis zum Tag vor der Klausur.
+  const letzterTag = Math.max(0, daysBetween(heute, exam) - 1);
+  const belegung = new Map<number, number>();
+  for (const task of tasks) {
+    if (!bleibtAktiv(task)) continue;
+    const offset = daysBetween(heute, task.dueDate);
+    if (offset >= 0) belegung.set(offset, (belegung.get(offset) ?? 0) + 1);
+  }
+
+  // Liegengebliebenes nach vorn holen, aelteste zuerst.
+  const ueberfaellig = tasks
+    .filter((task) => bleibtAktiv(task) && daysBetween(heute, task.dueDate) < 0)
+    .sort((a, b) => a.dueDate.getTime() - b.dueDate.getTime());
+
+  for (const task of ueberfaellig) {
+    let ziel = letzterTag;
+    for (let offset = 0; offset <= letzterTag; offset++) {
+      if ((belegung.get(offset) ?? 0) < MAX_PRO_TAG) {
+        ziel = offset;
+        break;
+      }
+    }
+    belegung.set(ziel, (belegung.get(ziel) ?? 0) + 1);
+    result.move.push({ id: task.id, dueDate: addDays(heute, ziel) });
+  }
+
+  return result;
+}

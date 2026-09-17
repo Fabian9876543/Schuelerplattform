@@ -4,7 +4,14 @@ import { Card, EmptyState, LinkButton, PageTitle } from "@/components/ui";
 import { getCurrentUser } from "@/lib/auth";
 import { prisma } from "@/lib/db";
 import { describeCountdown, formatDate } from "@/lib/format";
-import { daysBetween } from "@/lib/planning";
+import { daysBetween, progressPercent, type Mastery } from "@/lib/planning";
+
+/** Ampelfarbe zum Fortschritt - die drei Stufen aus dem Entwurf. */
+function ampel(prozent: number): { punkt: string; text: string } {
+  if (prozent >= 75) return { punkt: "bg-emerald-500", text: "text-emerald-700" };
+  if (prozent >= 40) return { punkt: "bg-amber-500", text: "text-amber-700" };
+  return { punkt: "bg-red-500", text: "text-red-700" };
+}
 
 export default async function HomePage() {
   const user = await getCurrentUser();
@@ -61,19 +68,29 @@ export default async function HomePage() {
             const days = daysBetween(today, goal.examDate);
             const latest = goal.assessments[0];
             const evaluation = latest?.evaluation;
-            const tasks = evaluation?.studyTasks ?? [];
+            const tasks = (evaluation?.studyTasks ?? []).filter((task) => !task.skipped);
             const doneCount = tasks.filter((task) => task.done).length;
+            const fortschritt = progressPercent(goal.topics.map((t) => t.mastery as Mastery));
+            const farbe = ampel(fortschritt);
 
             return (
               <Card key={goal.id}>
                 <div className="flex flex-wrap items-start justify-between gap-3">
                   <div>
-                    <Link
-                      href={`/lernplan/${goal.id}`}
-                      className="text-lg font-semibold text-slate-900 hover:text-brand-600"
-                    >
-                      {goal.title}
-                    </Link>
+                    <div className="flex items-center gap-2">
+                      {evaluation ? (
+                        <span
+                          className={`h-2.5 w-2.5 shrink-0 rounded-full ${farbe.punkt}`}
+                          aria-hidden="true"
+                        />
+                      ) : null}
+                      <Link
+                        href={`/lernplan/${goal.id}`}
+                        className="text-lg font-semibold text-slate-900 hover:text-brand-600"
+                      >
+                        {goal.title}
+                      </Link>
+                    </div>
                     <p className="mt-0.5 text-sm text-slate-600">
                       {goal.subject} &middot; {formatDate(goal.examDate)} ({describeCountdown(days)})
                     </p>
@@ -89,9 +106,12 @@ export default async function HomePage() {
                         Selbsttest begonnen
                       </span>
                     ) : (
-                      <span className="rounded-full bg-emerald-50 px-3 py-1 text-emerald-700">
-                        {doneCount} von {tasks.length} Aufgaben erledigt
-                      </span>
+                      <div>
+                        <span className={`font-medium ${farbe.text}`}>{fortschritt} % geschafft</span>
+                        <div className="mt-0.5 text-xs text-slate-500">
+                          {doneCount} von {tasks.length} Aufgaben erledigt
+                        </div>
+                      </div>
                     )}
                   </div>
                 </div>
