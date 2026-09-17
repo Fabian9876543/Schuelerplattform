@@ -5,7 +5,8 @@ aufeinander aufbauen:
 
 1. **Lernplan mit Auswertung** – Klausurdatum, Fach und Themen eintragen, einen
    kurzen Selbsttest machen und daraus eine Auswertung plus einen auf die Tage
-   bis zur Klausur verteilten Lernplan bekommen.
+   bis zur Klausur verteilten Lernplan bekommen. Der **Kalender** zeigt beides
+   zusammen: wann die Klausuren sind und was an welchem Tag zu tun ist.
 2. **Nachhilfe unter Mitschülern** – wo die Auswertung Lücken zeigt, schlägt die
    App Mitschüler vor, die genau in diesem Fach und Thema helfen können. Eine
    Anfrage lässt sich direkt stellen, annehmen oder ablehnen; nach einer Zusage
@@ -303,6 +304,31 @@ Der offene Verlauf lädt alle acht Sekunden nach, solange der Tab sichtbar ist;
 ruht er im Hintergrund, wird nicht nachgefragt. Das Markieren als gelesen
 passiert beim Aufbau der Seite und hängt nicht am Nachladen.
 
+## Kalender
+
+`/kalender` zeigt einen Monat mit allen eigenen Klausuren und den Lernaufgaben
+aus dem Plan. Ein Tipp auf einen Tag zeigt darunter, was an dem Tag ansteht.
+
+Die Seite kommt **ohne JavaScript im Browser** aus: Monatswechsel und
+Tagesauswahl sind gewöhnliche Links mit `?monat=2026-09&tag=2026-09-29`. Das
+hält sie klein, macht jeden Stand teilbar – ein Link zeigt immer denselben Tag –
+und der Zurück-Knopf tut, was man erwartet.
+
+Zwei Dinge daran waren die eigentliche Arbeit und hängen deshalb an Tests
+(`lib/calendar.ts`, `tests/calendar.test.ts`):
+
+- **Tagesschlüssel aus den örtlichen Bestandteilen, nicht über
+  `toISOString()`.** Letzteres rechnet nach UTC um und würde abends um halb
+  zwölf schon den nächsten Tag liefern – der Termin stünde einen Tag zu spät im
+  Kalender. Aus demselben Grund liegen alle Daten mittags (siehe
+  `atNoon` in `lib/planning.ts`).
+- **Monatssprünge über den Monatsersten.** Vom 31. Januar aus landet ein naives
+  „ein Monat weiter" im März, weil es keinen 31. Februar gibt.
+
+Was aus der Adresszeile kommt, wird geprüft: `?monat=2026-13`,
+`?tag=2026-02-30` oder blanker Unsinn führen zurück auf den laufenden Monat,
+nicht auf eine Fehlerseite.
+
 ## Bewertungen
 
 Nach einer Zusage gibt die anfragende Person eine Rückmeldung: ein bis fünf
@@ -377,6 +403,7 @@ components/          gemeinsame UI-Bausteine
 lib/
   ai/                Auswertung: Interface, Claude-Anbindung, regelbasierter Fallback
   planning.ts        verteilt Lernaufgaben auf Kalendertage
+  calendar.ts        Monatsraster, Tagesschlüssel, Monatssprünge
   matching.ts        bewertet Nachhilfe-Angebote gegen ein Defizit
   tutors.ts          Datenzugriff für die Tutorensuche
   messages.ts        Regeln für den Nachrichtenverlauf (wer darf lesen, wer schreiben)
@@ -394,9 +421,9 @@ Schreibzugriffe laufen über Route Handler mit Zod-Validierung.
 ## Tests
 
 ```bash
-npm test         # 69 Tests: Terminverteilung, Matching, Fallback, KI-Schemas,
+npm test         # 83 Tests: Terminverteilung, Matching, Fallback, KI-Schemas,
                  #            Umplanung, Grenzwerte, Zugang zu Verläufen,
-                 #            Gewicht der Bewertungen
+                 #            Gewicht der Bewertungen, Kalenderrechnung
 npm run build    # Typprüfung und Produktionsbuild
 ```
 

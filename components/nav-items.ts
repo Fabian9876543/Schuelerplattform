@@ -2,6 +2,7 @@
  *  Leiste und vom ausklappbaren Menü, damit beide nicht auseinanderlaufen. */
 export const NAV_ITEMS = [
   { href: "/", label: "Meine Klausuren" },
+  { href: "/kalender", label: "Kalender" },
   { href: "/nachhilfe", label: "Nachhilfe finden" },
   { href: "/nachhilfe/anbieten", label: "Nachhilfe geben" },
   // Hier landen die Nachrichtenverläufe, deshalb hängt der Zähler an diesem
