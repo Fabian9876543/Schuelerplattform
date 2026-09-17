@@ -1,0 +1,106 @@
+import Link from "next/link";
+import { notFound } from "next/navigation";
+
+import { MessageThread } from "@/app/anfragen/[id]/message-thread";
+import { StatusBadge } from "@/app/anfragen/status-badge";
+import { Card, PageTitle } from "@/components/ui";
+import { requireUser } from "@/lib/auth";
+import { formatDate } from "@/lib/format";
+import { canWrite } from "@/lib/messages";
+import { counterpart, loadThread, markThreadRead } from "@/lib/messages-db";
+
+/** Warum hier nicht geschrieben werden darf - je nach Stand der Anfrage. */
+const GESPERRT: Record<string, string> = {
+  open: "Sobald zugesagt ist, koennt ihr euch hier schreiben.",
+  declined: "Diese Anfrage wurde abgelehnt. Schreiben ist deshalb nicht moeglich.",
+  withdrawn: "Diese Anfrage wurde zurueckgezogen. Schreiben ist deshalb nicht moeglich.",
+};
+
+export default async function ThreadPage({ params }: { params: Promise<{ id: string }> }) {
+  const user = await requireUser();
+  const { id } = await params;
+
+  // loadThread gibt fuer Unbeteiligte dasselbe zurueck wie fuer eine
+  // unbekannte ID. Die Seite kann also nicht verraten, dass es die Anfrage
+  // gibt - wer nicht dazugehoert, sieht die normale 404-Seite.
+  const thread = await loadThread(id, user.id);
+  if (!thread) notFound();
+
+  // Wer den Verlauf oeffnet, hat ihn gelesen. Das passiert beim Aufbau der
+  // Seite und nicht erst beim Nachladen im Browser: Sonst bliebe der Zaehler
+  // stehen, wenn jemand die Seite gleich wieder verlaesst oder das
+  // JavaScript nicht durchkommt.
+  await markThreadRead(id, user.id);
+
+  const { request, role } = thread;
+  const gegenueber = counterpart(thread);
+  const darfSchreiben = canWrite(request.status);
+
+  return (
+    <div className="space-y-6">
+      <div>
+        <Link href="/anfragen" className="text-sm text-slate-500 hover:text-brand-600">
+          &larr; Zurueck zu den Anfragen
+        </Link>
+      </div>
+
+      <PageTitle
+        title={`Nachhilfe mit ${gegenueber.name}`}
+        subtitle={`${request.tutorOffer.subject} · ${request.topic} · Klasse ${gegenueber.gradeLevel}`}
+      />
+
+      <Card>
+        <div className="flex flex-wrap items-center gap-2">
+          <h2 className="font-medium text-slate-900">Die Anfrage</h2>
+          <StatusBadge status={request.status} />
+          <span className="text-sm text-slate-500">vom {formatDate(request.createdAt)}</span>
+        </div>
+
+        <p className="mt-3 text-sm text-slate-500">
+          {role === "requester" ? "Du hast geschrieben" : `${request.requester.name} hat geschrieben`}:
+        </p>
+        <p className="mt-1 whitespace-pre-wrap text-slate-700">{request.message}</p>
+
+        {request.responseMessage ? (
+          <>
+            <p className="mt-3 text-sm text-slate-500">
+              {role === "tutor" ? "Du hast geantwortet" : `${gegenueber.name} hat geantwortet`}:
+            </p>
+            <p className="mt-1 whitespace-pre-wrap text-slate-700">{request.responseMessage}</p>
+          </>
+        ) : null}
+      </Card>
+
+      <Card>
+        <h2 className="mb-3 font-medium text-slate-900">Nachrichten</h2>
+
+        {darfSchreiben ? null : (
+          <p className="mb-3 rounded-md bg-slate-50 px-3 py-2 text-sm text-slate-600">
+            {GESPERRT[request.status]}
+          </p>
+        )}
+
+        {/* key: beim Wechsel auf einen anderen Verlauf muss der Zustand neu
+            beginnen, sonst stuenden kurz die Nachrichten der vorigen Anfrage da. */}
+        <MessageThread
+          key={request.id}
+          requestId={request.id}
+          canWrite={darfSchreiben}
+          initial={request.messages.map((message) => ({
+            id: message.id,
+            body: message.body,
+            createdAt: message.createdAt.toISOString(),
+            senderName: message.sender.name,
+            mine: message.senderId === user.id,
+          }))}
+        />
+      </Card>
+
+      {darfSchreiben ? (
+        <p className="text-sm text-slate-500">
+          Ihr schreibt innerhalb der Plattform. E-Mail-Adressen werden dabei nicht ausgetauscht.
+        </p>
+      ) : null}
+    </div>
+  );
+}

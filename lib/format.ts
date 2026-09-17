@@ -10,8 +10,18 @@ const weekdayFormatter = new Intl.DateTimeFormat("de-DE", {
   month: "2-digit",
 });
 
+const timeFormatter = new Intl.DateTimeFormat("de-DE", {
+  hour: "2-digit",
+  minute: "2-digit",
+});
+
 export function formatDate(date: Date): string {
   return dateFormatter.format(date);
+}
+
+/** "17.09.2026, 14:32 Uhr" - fuer einzelne Nachrichten im Verlauf. */
+export function formatDateTime(date: Date): string {
+  return `${dateFormatter.format(date)}, ${timeFormatter.format(date)} Uhr`;
 }
 
 export function formatDayWithWeekday(date: Date): string {

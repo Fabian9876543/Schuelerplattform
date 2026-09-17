@@ -4,5 +4,8 @@ export const NAV_ITEMS = [
   { href: "/", label: "Meine Klausuren" },
   { href: "/nachhilfe", label: "Nachhilfe finden" },
   { href: "/nachhilfe/anbieten", label: "Nachhilfe geben" },
-  { href: "/anfragen", label: "Anfragen" },
+  // Hier landen die Nachrichtenverläufe, deshalb hängt der Zähler an diesem
+  // Punkt. Als Eigenschaft am Eintrag statt als abgefragte Adresse: Zieht der
+  // Punkt um, wandert der Zähler mit.
+  { href: "/anfragen", label: "Anfragen", showsUnread: true },
 ] as const;

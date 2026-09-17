@@ -1,43 +1,43 @@
+import Link from "next/link";
+
 import { RequestActions } from "@/app/anfragen/request-actions";
+import { StatusBadge } from "@/app/anfragen/status-badge";
 import { Card, EmptyState, PageTitle } from "@/components/ui";
 import { requireUser } from "@/lib/auth";
-import type { RequestStatus } from "@/lib/constants";
 import { prisma } from "@/lib/db";
 import { formatDate } from "@/lib/format";
+import { describeUnread } from "@/lib/messages";
+import { unreadByRequest } from "@/lib/messages-db";
 
-// Record<RequestStatus, ...> statt Record<string, ...>: Kommt ein Status dazu,
-// weist der Compiler auf die fehlende Uebersetzung hin, statt sie stillschweigend
-// als englischen Rohwert anzuzeigen.
-const STATUS_LABEL: Record<RequestStatus, string> = {
-  open: "offen",
-  accepted: "angenommen",
-  declined: "abgelehnt",
-  withdrawn: "zurueckgezogen",
-};
-
-const STATUS_STYLE: Record<RequestStatus, string> = {
-  open: "bg-amber-50 text-amber-700",
-  accepted: "bg-emerald-50 text-emerald-700",
-  declined: "bg-slate-100 text-slate-600",
-  withdrawn: "bg-slate-100 text-slate-600",
-};
-
-function StatusBadge({ status }: { status: RequestStatus }) {
+/**
+ * Der Weg in den Verlauf. Frueher stand hier nach einer Zusage die
+ * E-Mail-Adresse der Gegenseite - geschrieben wird jetzt in der App, damit
+ * Adressen von Minderjaehrigen den Server nicht verlassen.
+ */
+function ThreadLink({ id, ungelesen }: { id: string; ungelesen: number }) {
   return (
-    <span className={`rounded-full px-2.5 py-0.5 text-xs font-medium ${STATUS_STYLE[status]}`}>
-      {STATUS_LABEL[status]}
-    </span>
+    <Link
+      href={`/anfragen/${id}`}
+      className="mt-3 inline-flex items-center gap-2 rounded-md bg-emerald-50 px-3 py-2 text-sm font-medium text-emerald-800 hover:bg-emerald-100"
+    >
+      Nachrichten oeffnen
+      {ungelesen > 0 ? (
+        <span className="rounded-full bg-emerald-600 px-2 py-0.5 text-xs font-medium text-white">
+          {describeUnread(ungelesen)}
+        </span>
+      ) : null}
+    </Link>
   );
 }
 
 export default async function RequestsPage() {
   const user = await requireUser();
 
-  const [incoming, outgoing] = await Promise.all([
+  const [incoming, outgoing, ungelesen] = await Promise.all([
     prisma.tutoringRequest.findMany({
       where: { tutorOffer: { userId: user.id } },
       include: {
-        requester: { select: { name: true, gradeLevel: true, email: true } },
+        requester: { select: { name: true, gradeLevel: true } },
         tutorOffer: { select: { subject: true } },
       },
       orderBy: [{ status: "asc" }, { createdAt: "desc" }],
@@ -45,10 +45,11 @@ export default async function RequestsPage() {
     prisma.tutoringRequest.findMany({
       where: { requesterId: user.id },
       include: {
-        tutorOffer: { select: { subject: true, user: { select: { name: true, email: true } } } },
+        tutorOffer: { select: { subject: true, user: { select: { name: true } } } },
       },
       orderBy: { createdAt: "desc" },
     }),
+    unreadByRequest(user.id),
   ]);
 
   return (
@@ -85,13 +86,7 @@ export default async function RequestsPage() {
                     <p className="mt-2 text-slate-700">{request.message}</p>
 
                     {request.status === "accepted" ? (
-                      <p className="mt-3 rounded-md bg-emerald-50 px-3 py-2 text-sm text-emerald-800">
-                        Du hast zugesagt. Meldet euch unter{" "}
-                        <a href={`mailto:${request.requester.email}`} className="font-medium underline">
-                          {request.requester.email}
-                        </a>{" "}
-                        und macht einen Termin aus.
-                      </p>
+                      <ThreadLink id={request.id} ungelesen={ungelesen.get(request.id) ?? 0} />
                     ) : null}
                   </div>
 
@@ -134,16 +129,7 @@ export default async function RequestsPage() {
                     ) : null}
 
                     {request.status === "accepted" ? (
-                      <p className="mt-3 rounded-md bg-emerald-50 px-3 py-2 text-sm text-emerald-800">
-                        {request.tutorOffer.user.name} hat zugesagt. Schreib unter{" "}
-                        <a
-                          href={`mailto:${request.tutorOffer.user.email}`}
-                          className="font-medium underline"
-                        >
-                          {request.tutorOffer.user.email}
-                        </a>{" "}
-                        und macht einen Termin aus.
-                      </p>
+                      <ThreadLink id={request.id} ungelesen={ungelesen.get(request.id) ?? 0} />
                     ) : null}
                   </div>
 

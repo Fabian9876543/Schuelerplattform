@@ -78,6 +78,7 @@ model User {
   learningGoals     LearningGoal[]
   tutorOffers       TutorOffer[]
   sentRequests      TutoringRequest[] @relation("RequestsSent")
+  sentMessages      Message[]         @relation("MessagesSent")
 
   @@index([schoolId])
 }
@@ -290,9 +291,34 @@ model TutoringRequest {
   requester  User       @relation("RequestsSent", fields: [requesterId], references: [id], onDelete: Cascade)
   tutorOffer TutorOffer @relation(fields: [tutorOfferId], references: [id], onDelete: Cascade)
   deficit    Deficit?   @relation(fields: [deficitId], references: [id], onDelete: SetNull)
+  messages   Message[]
 
   @@index([requesterId])
   @@index([tutorOfferId])
+}
+
+/// Eine Nachricht im Verlauf zu einer Nachhilfe-Anfrage.
+///
+/// Geschrieben wird in der App, nicht per E-Mail: Adressen von Minderjaehrigen
+/// verlassen den Server damit gar nicht erst.
+///
+/// An einem Verlauf haengen genau zwei Personen, deshalb gibt es keine
+/// Empfaengerspalte - Empfaenger ist, wer nicht Absender ist. `readAt` haelt
+/// fest, wann die Gegenseite gelesen hat; die Zahl der neuen Nachrichten
+/// ergibt sich daraus und kann nicht veralten wie ein mitgefuehrter Zaehler.
+model Message {
+  id        String    @id @default(cuid())
+  requestId String
+  senderId  String
+  body      String
+  createdAt DateTime  @default(now())
+  readAt    DateTime?
+
+  request TutoringRequest @relation(fields: [requestId], references: [id], onDelete: Cascade)
+  sender  User            @relation("MessagesSent", fields: [senderId], references: [id], onDelete: Cascade)
+
+  @@index([requestId, createdAt])
+  @@index([senderId])
 }
 
 /// Fehlgeschlagene Anmeldeversuche - bremst das Durchprobieren von Passwoertern.

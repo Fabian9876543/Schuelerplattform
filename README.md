@@ -8,7 +8,8 @@ aufeinander aufbauen:
    bis zur Klausur verteilten Lernplan bekommen.
 2. **Nachhilfe unter Mitschülern** – wo die Auswertung Lücken zeigt, schlägt die
    App Mitschüler vor, die genau in diesem Fach und Thema helfen können. Eine
-   Anfrage lässt sich direkt stellen, annehmen oder ablehnen.
+   Anfrage lässt sich direkt stellen, annehmen oder ablehnen; nach einer Zusage
+   schreiben sich die beiden in der App.
 
 Der zweite Punkt hängt am ersten: Die erkannten Defizite sind der Suchbegriff
 für die Tutorensuche.
@@ -43,7 +44,8 @@ Alle Beispielkonten haben das Passwort `geheim123`:
 |---|---|---|
 | `lena@schule.de` | Goethe-Gymnasium | hat eine fertig ausgewertete Mathe-Klausur mit Lernplan |
 | `jonas@schule.de` | Goethe-Gymnasium | gibt Nachhilfe in Mathe und Physik, hat eine offene Anfrage |
-| `mira@schule.de` | Goethe-Gymnasium | gibt Nachhilfe in Mathe bis Klasse 13 |
+| `mira@schule.de` | Goethe-Gymnasium | gibt Nachhilfe in Mathe bis Klasse 13, hat eine Zusage an Tom |
+| `tom@schule.de` | Goethe-Gymnasium | angenommene Anfrage bei Mira, mit angefangenem Nachrichtenverlauf |
 | `paul@schule.de` | Goethe-Gymnasium | hat eine Anfrage an Jonas gestellt |
 | `nils@humboldt.de` | Humboldt-Schule | bietet dieselben Mathe-Themen an – für das Goethe-Gymnasium unsichtbar |
 | `sara@humboldt.de` | Humboldt-Schule | ebenso |
@@ -274,6 +276,33 @@ Lernhelfer zugelassen wird oder welche Fächer angeboten werden. Dafür braucht
 es eine eigene Rolle und Oberfläche – erst ist die Grenze gezogen, verwalten
 lässt sich innerhalb davon später.
 
+## Nachrichten
+
+Nach einer Zusage läuft die Absprache in der App: `/anfragen/<id>` zeigt den
+Verlauf zur Anfrage. Vorher wurden dort die E-Mail-Adressen getauscht – das
+fällt weg, Adressen von Minderjährigen verlassen den Server damit gar nicht
+erst.
+
+Drei Regeln, und alle drei prüft der Server, nicht die Anzeige:
+
+1. **Lesen dürfen nur die beiden Beteiligten.** Für alle anderen sieht es aus,
+   als gäbe es die Anfrage nicht (404) – auch für Mitschüler derselben Schule.
+2. **Geschrieben wird erst nach einer Zusage.** Sonst wäre eine Anfrage nur die
+   Eintrittskarte in ein fremdes Postfach; so kommt ohne Einverständnis genau
+   eine Nachricht an, nämlich die Anfrage selbst.
+3. **Gelesen heißt: von der Gegenseite gelesen.** `Message.readAt` steht auf
+   `NULL`, bis der Empfänger den Verlauf öffnet. Daraus entsteht der Zähler in
+   der Navigation – kein mitgeführter Zählerstand, der veralten kann.
+
+Die Regeln selbst stehen in `lib/messages.ts` (ohne Datenbank, deshalb
+testbar), die Abfragen in `lib/messages-db.ts`. Dort gibt es bewusst **keine**
+Funktion, die einen Verlauf ohne Nutzerprüfung herausgibt – so kann sie an
+keiner Aufrufstelle vergessen werden.
+
+Der offene Verlauf lädt alle acht Sekunden nach, solange der Tab sichtbar ist;
+ruht er im Hintergrund, wird nicht nachgefragt. Das Markieren als gelesen
+passiert beim Aufbau der Seite und hängt nicht am Nachladen.
+
 ## Grenzen und Schutz
 
 `lib/limits.ts` hält alle Grenzwerte an einer Stelle:
@@ -284,6 +313,7 @@ lässt sich innerhalb davon später.
 | Lernvorhaben je Nutzer | 50 | bremst automatisierte Schleifen |
 | Fehlversuche je E-Mail / 15 Min. | 10 | Durchprobieren von Passwörtern |
 | Freitextantwort | 5 000 Zeichen | die Antwort geht in den KI-Prompt, jedes Zeichen kostet |
+| Nachricht | 2 000 Zeichen | begrenzt, was eine einzelne Anfrage in der Datenbank ablegt |
 
 Die Anmeldesperre greift **auch beim richtigen Passwort** – sonst könnte man
 weiter durchprobieren und beim Treffer trotzdem hereinkommen. Gezählt wird nach
@@ -306,6 +336,8 @@ lib/
   planning.ts        verteilt Lernaufgaben auf Kalendertage
   matching.ts        bewertet Nachhilfe-Angebote gegen ein Defizit
   tutors.ts          Datenzugriff für die Tutorensuche
+  messages.ts        Regeln für den Nachrichtenverlauf (wer darf lesen, wer schreiben)
+  messages-db.ts     die Abfragen dazu, jede mit Nutzerprüfung
   auth.ts            E-Mail/Passwort-Anmeldung mit Session-Cookie
 prisma/              Datenmodell, Migrationen, Beispieldaten
 tests/               Vitest-Tests für die Logik
@@ -317,7 +349,8 @@ Schreibzugriffe laufen über Route Handler mit Zod-Validierung.
 ## Tests
 
 ```bash
-npm test         # 29 Tests: Terminverteilung, Matching, Fallback, KI-Schemas
+npm test         # 55 Tests: Terminverteilung, Matching, Fallback, KI-Schemas,
+                 #            Umplanung, Grenzwerte, Zugang zu Verläufen
 npm run build    # Typprüfung und Produktionsbuild
 ```
 
@@ -345,7 +378,6 @@ Die Tests brauchen keinen API-Schlüssel.
 
 ## Was als Nächstes sinnvoll wäre
 
-- Terminvereinbarung und Nachrichten in der App (aktuell wird nach einer Zusage
-  die E-Mail-Adresse ausgetauscht)
+- Terminvereinbarung: feste Zeiten statt einer Absprache im Text
 - Rückmeldung nach der Klausur, um die Treffsicherheit der Auswertung zu prüfen
 - Bewertungen für Nachhilfe, damit gute Erklärer sichtbar werden

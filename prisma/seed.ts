@@ -44,6 +44,7 @@ async function main() {
   // Auch die Anmeldeversuche: Sonst bleibt nach dem Seeding eine Sperre aus
   // einem frueheren Lauf bestehen, und die Beispielkonten kommen nicht herein.
   await prisma.loginAttempt.deleteMany();
+  await prisma.message.deleteMany();
   await prisma.tutoringRequest.deleteMany();
   await prisma.studyTask.deleteMany();
   await prisma.deficit.deleteMany();
@@ -308,7 +309,7 @@ async function main() {
 
   // Eine bereits angenommene Anfrage - dadurch wird Miras Angebot beim
   // Gleichstand nach hinten sortiert, das laesst sich in der Suche nachsehen.
-  await prisma.tutoringRequest.create({
+  const angenommen = await prisma.tutoringRequest.create({
     data: {
       requesterId: users["tom@schule.de"],
       tutorOfferId: offerIds["mira@schule.de:Mathematik"],
@@ -320,9 +321,33 @@ async function main() {
     },
   });
 
+  // ... mit angefangenem Verlauf. Miras letzte Nachricht bleibt ungelesen,
+  // damit sich der Zaehler in der Navigation gleich nach der Anmeldung als
+  // Tom zeigt.
+  const vorhin = (minuten: number) => new Date(Date.now() - minuten * 60_000);
+
+  await prisma.message.create({
+    data: {
+      requestId: angenommen.id,
+      senderId: users["tom@schule.de"],
+      body: "Super, danke dir! Passt dir Mittwoch nach der sechsten Stunde?",
+      createdAt: vorhin(90),
+      readAt: vorhin(80),
+    },
+  });
+  await prisma.message.create({
+    data: {
+      requestId: angenommen.id,
+      senderId: users["mira@schule.de"],
+      body: "Mittwoch geht bei mir. Bring die letzte Klausur mit, dann gehen wir die Aufgaben durch.",
+      createdAt: vorhin(45),
+    },
+  });
+
   console.log("Fertig: 2 Schulen (Beitrittscodes GOETHE und HUMBOLDT),");
   console.log(`${people.length} Konten, ${offers.length} Nachhilfe-Angebote,`);
-  console.log(`1 ausgewertetes Lernvorhaben mit ${plan.length} Lernaufgaben.`);
+  console.log(`1 ausgewertetes Lernvorhaben mit ${plan.length} Lernaufgaben,`);
+  console.log("1 angenommene Anfrage mit Nachrichtenverlauf (Tom und Mira).");
   console.log(`Passwort fuer alle Konten: ${PASSWORD}`);
 }
 
