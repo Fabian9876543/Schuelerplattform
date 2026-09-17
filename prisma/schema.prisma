@@ -162,6 +162,7 @@ model User {
   givenRatings      Rating[]          @relation("RatingsGiven")
   proposedMeetings  Appointment[]     @relation("AppointmentsProposed")
   approvedOffers    TutorOffer[]      @relation("OffersApproved")
+  pushSubscriptions PushSubscription[]
   filedReports      Report[]          @relation("ReportsFiled")
   reportsAbout      Report[]          @relation("ReportsAbout")
   handledReports    Report[]          @relation("ReportsHandled")
@@ -529,6 +530,35 @@ model Report {
   @@unique([reporterId, targetType, targetId])
   @@index([schoolId, status])
   @@index([authorId])
+}
+
+/// Ein Geraet, das Benachrichtigungen bekommen moechte.
+///
+/// Ein Eintrag je **Geraet**, nicht je Nutzer: Handy und Tablet sind zwei
+/// Abonnements mit eigenen Schluesseln. Ein- und Ausschalten heisst, den
+/// Eintrag anzulegen oder zu loeschen - ein zusaetzliches Haekchen braucht es
+/// nicht.
+///
+/// `endpoint` ist die Adresse beim Push-Dienst des Browserherstellers und
+/// damit der natuerliche Schluessel: Meldet sich dasselbe Geraet erneut an,
+/// wird der vorhandene Eintrag aktualisiert statt ein zweiter angelegt.
+model PushSubscription {
+  id       String @id @default(cuid())
+  userId   String
+  endpoint String @unique
+  /// Oeffentlicher Schluessel des Geraets (aus der Browser-Anmeldung)
+  p256dh   String
+  /// Geheimnis fuer die Verschluesselung (aus der Browser-Anmeldung)
+  auth     String
+  /// Zur Wiedererkennung in einer Geraeteliste - rein informativ
+  userAgent     String?
+  createdAt     DateTime  @default(now())
+  /// Wann zuletzt erfolgreich zugestellt wurde
+  lastSuccessAt DateTime?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
 }
 
 /// Fehlgeschlagene Anmeldeversuche - bremst das Durchprobieren von Passwoertern.

@@ -1,4 +1,5 @@
 import type { AppointmentStatus, RequestStatus } from "@/lib/constants";
+import { daysBetween } from "@/lib/planning";
 
 /**
  * Die Regeln rund um feste Lerntermine - ohne Datenbank, damit sie sich ohne
@@ -77,6 +78,20 @@ export function overlaps(a: TerminZeit, b: TerminZeit): boolean {
 export function formatAppointment(termin: TerminZeit): string {
   const ende = endOf(termin);
   return `${dateTimeFormatter.format(termin.startsAt)}, ${timeFormatter.format(termin.startsAt)}–${timeFormatter.format(ende)} Uhr`;
+}
+
+/**
+ * Kurzform fuer Erinnerungen: "heute 16:00", "morgen 15:00", sonst mit Datum.
+ *
+ * In einer Benachrichtigung ist "morgen 15:00" sofort verstaendlich, ein
+ * ausgeschriebenes Datum muss man erst einordnen.
+ */
+export function describeSoon(startsAt: Date, now: Date = new Date()): string {
+  const tage = daysBetween(now, startsAt);
+  const uhrzeit = timeFormatter.format(startsAt);
+  if (tage === 0) return `heute ${uhrzeit}`;
+  if (tage === 1) return `morgen ${uhrzeit}`;
+  return `${dateTimeFormatter.format(startsAt)}, ${uhrzeit}`;
 }
 
 export function isPast(startsAt: Date, now: Date = new Date()): boolean {

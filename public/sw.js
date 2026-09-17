@@ -37,3 +37,56 @@ self.addEventListener("fetch", (event) => {
     fetch(request).catch(() => caches.match(OFFLINE).then((antwort) => antwort ?? Response.error())),
   );
 });
+
+/*
+ * Benachrichtigungen.
+ *
+ * Der Server schickt den fertigen Text (siehe lib/push.ts) - hier wird nichts
+ * zusammengebaut, nur angezeigt. `tag` sorgt dafuer, dass eine zweite
+ * Nachricht aus demselben Verlauf die erste ersetzt statt sich daneben zu
+ * legen.
+ */
+self.addEventListener("push", (event) => {
+  if (!event.data) return;
+
+  let inhalt;
+  try {
+    inhalt = event.data.json();
+  } catch {
+    return; // Nichts Lesbares - dann auch keine Benachrichtigung.
+  }
+
+  event.waitUntil(
+    self.registration.showNotification(inhalt.title ?? "Schuelerplattform", {
+      body: inhalt.body ?? "",
+      tag: inhalt.tag,
+      icon: "/icon-192.png",
+      badge: "/icon-192.png",
+      data: { url: inhalt.url ?? "/" },
+    }),
+  );
+});
+
+/*
+ * Klick auf die Benachrichtigung: Ein schon offenes Fenster der App wird
+ * benutzt und auf die Zielseite geschickt. Nur wenn keines offen ist, wird
+ * eines geoeffnet - sonst haette man die App zweimal.
+ */
+self.addEventListener("notificationclick", (event) => {
+  event.notification.close();
+  const ziel = event.notification.data?.url ?? "/";
+
+  event.waitUntil(
+    (async () => {
+      const fenster = await self.clients.matchAll({ type: "window", includeUncontrolled: true });
+      for (const client of fenster) {
+        if ("focus" in client) {
+          await client.focus();
+          if ("navigate" in client) await client.navigate(ziel);
+          return;
+        }
+      }
+      await self.clients.openWindow(ziel);
+    })(),
+  );
+});

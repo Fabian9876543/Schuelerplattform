@@ -4,7 +4,8 @@ import { fail, fromZodError, ok, withUser } from "@/lib/api";
 import { prisma } from "@/lib/db";
 import { LIMITS } from "@/lib/limits";
 import { canWrite } from "@/lib/messages";
-import { loadThread, markThreadRead } from "@/lib/messages-db";
+import { counterpart, loadThread, markThreadRead } from "@/lib/messages-db";
+import { notifyAfter } from "@/lib/push-send";
 
 const schema = z.object({
   body: z
@@ -80,6 +81,12 @@ export async function POST(request: Request, context: { params: Promise<{ id: st
     const created = await prisma.message.create({
       data: { requestId: id, senderId: user.id, body: parsed.data.body },
       include: { sender: { select: { name: true } } },
+    });
+
+    notifyAfter([counterpart(thread).id], {
+      art: "nachricht",
+      von: user.name,
+      requestId: id,
     });
 
     return ok(

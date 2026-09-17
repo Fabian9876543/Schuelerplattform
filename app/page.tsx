@@ -1,10 +1,13 @@
 import Link from "next/link";
 
+import { PushToggle } from "@/components/push-toggle";
 import { Card, EmptyState, LinkButton, PageTitle } from "@/components/ui";
 import { getCurrentUser, type SessionUser } from "@/lib/auth";
 import { prisma } from "@/lib/db";
 import { describeCountdown, formatDate } from "@/lib/format";
 import { daysBetween, progressPercent, type Mastery } from "@/lib/planning";
+import { hasSubscription } from "@/lib/push-db";
+import { publicKey } from "@/lib/push-send";
 import { takesPartInTutoring } from "@/lib/school";
 
 /** Ampelfarbe zum Fortschritt - die drei Stufen aus dem Entwurf. */
@@ -20,9 +23,11 @@ export default async function HomePage() {
   if (!user) return <Welcome />;
   // Lehrkraefte haben keine Klausuren - fuer sie ist die Startseite eine
   // andere. Eine leere Klausurliste waere kein Zustand, sondern ein Irrtum.
-  if (!takesPartInTutoring(user.kind)) return <TeacherHome user={user} />;
+  if (!takesPartInTutoring(user.kind)) {
+    return <TeacherHome user={user} abonniert={await hasSubscription(user.id)} />;
+  }
 
-  const [goals, openRequests] = await Promise.all([
+  const [goals, openRequests, abonniert] = await Promise.all([
     prisma.learningGoal.findMany({
       where: { userId: user.id },
       orderBy: { examDate: "asc" },
@@ -37,6 +42,7 @@ export default async function HomePage() {
     prisma.tutoringRequest.count({
       where: { status: "open", tutorOffer: { userId: user.id } },
     }),
+    hasSubscription(user.id),
   ]);
 
   const today = new Date();
@@ -128,6 +134,10 @@ export default async function HomePage() {
           })}
         </div>
       )}
+
+      <div className="mt-6">
+        <PushToggle publicKey={publicKey()} abonniert={abonniert} />
+      </div>
     </div>
   );
 }
@@ -137,7 +147,7 @@ export default async function HomePage() {
  * wo es fuer diese Lehrkraft weitergeht - und sagt klar, was sie hier nicht
  * kann und nicht sieht.
  */
-function TeacherHome({ user }: { user: SessionUser }) {
+function TeacherHome({ user, abonniert }: { user: SessionUser; abonniert: boolean }) {
   return (
     <div className="mx-auto max-w-2xl">
       <PageTitle
@@ -165,6 +175,12 @@ function TeacherHome({ user }: { user: SessionUser }) {
           </p>
         </Card>
       )}
+
+      {user.isAdmin ? (
+        <div className="mb-4">
+          <PushToggle publicKey={publicKey()} abonniert={abonniert} />
+        </div>
+      ) : null}
 
       <Card>
         <h2 className="font-medium text-slate-900">Was hier passiert</h2>

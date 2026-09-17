@@ -10,6 +10,15 @@ import { reportsForSchool } from "@/lib/reports-db";
  * Selbsttests ausgefallen sind. Diese Abfragen gibt es hier schlicht nicht.
  */
 
+/** Die Konten, die diese Schule verwalten - fuer Benachrichtigungen. */
+export async function schoolAdminIds(schoolId: string): Promise<string[]> {
+  const zeilen = await prisma.user.findMany({
+    where: { schoolId, isAdmin: true },
+    select: { id: true },
+  });
+  return zeilen.map((zeile) => zeile.id);
+}
+
 /** Die Faecher, die diese Schule zulaesst (leer = alle). */
 export async function schoolSubjects(schoolId: string): Promise<string[]> {
   const zeilen = await prisma.schoolSubject.findMany({

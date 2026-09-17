@@ -2,6 +2,7 @@ import { z } from "zod";
 
 import { fail, fromZodError, ok, withUser } from "@/lib/api";
 import { prisma } from "@/lib/db";
+import { notifyAfter } from "@/lib/push-send";
 
 const schema = z.object({
   // Nicht der volle RequestStatus: "open" ist der Ausgangszustand und laesst
@@ -48,6 +49,18 @@ export async function PATCH(request: Request, context: { params: Promise<{ id: s
         respondedAt: new Date(),
       },
     });
+
+    // Nur die Antwort auf eine Anfrage wird gemeldet. Zieht die anfragende
+    // Person zurueck, sieht die Gegenseite das in ihrer Liste - dafuer
+    // jemanden aus dem Unterricht zu klingeln waere zu viel.
+    if (parsed.data.status !== "withdrawn") {
+      notifyAfter([existing.requesterId], {
+        art: "beantwortet",
+        von: user.name,
+        zugesagt: parsed.data.status === "accepted",
+        requestId: id,
+      });
+    }
 
     return ok({ id, status: parsed.data.status });
   });

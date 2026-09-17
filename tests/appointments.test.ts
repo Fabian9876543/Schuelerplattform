@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import {
   canCancel,
+  describeSoon,
   canConfirm,
   canPropose,
   endOf,
@@ -107,5 +108,26 @@ describe("Wer darf was", () => {
     expect(canCancel({ status: "proposed" })).toBe(true);
     expect(canCancel({ status: "confirmed" })).toBe(true);
     expect(canCancel({ status: "cancelled" })).toBe(false);
+  });
+});
+
+describe("describeSoon", () => {
+  const jetzt = parseLocalDateTime("2026-09-23T10:00")!;
+
+  it("sagt heute und morgen statt eines Datums", () => {
+    // In einer Benachrichtigung ist "morgen 15:00" sofort verstaendlich.
+    expect(describeSoon(parseLocalDateTime("2026-09-23T16:00")!, jetzt)).toBe("heute 16:00");
+    expect(describeSoon(parseLocalDateTime("2026-09-24T15:00")!, jetzt)).toBe("morgen 15:00");
+  });
+
+  it("nennt weiter entfernte Termine mit Datum", () => {
+    expect(describeSoon(parseLocalDateTime("2026-09-26T15:00")!, jetzt)).toBe("Sa., 26.09.2026, 15:00");
+  });
+
+  it("zaehlt in Kalendertagen, nicht in Stunden", () => {
+    // 23:30 heute und 00:30 morgen liegen eine Stunde auseinander, aber an
+    // verschiedenen Tagen - und genau das interessiert.
+    expect(describeSoon(parseLocalDateTime("2026-09-23T23:30")!, jetzt)).toBe("heute 23:30");
+    expect(describeSoon(parseLocalDateTime("2026-09-24T00:30")!, jetzt)).toBe("morgen 00:30");
   });
 });

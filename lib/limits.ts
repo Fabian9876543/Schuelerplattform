@@ -30,6 +30,8 @@ export const LIMITS = {
   commentLength: 500,
   /** Meldungen je Nutzer und Tag - bremst das Zuschuetten mit Meldungen */
   reportsPerDay: 10,
+  /** Geraete je Nutzer fuer Benachrichtigungen - aelteste fallen heraus */
+  devicesPerUser: 10,
   /** Was die meldende Person dazuschreibt */
   reportNoteLength: 500,
 } as const;

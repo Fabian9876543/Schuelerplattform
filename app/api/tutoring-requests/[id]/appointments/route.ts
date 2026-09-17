@@ -12,7 +12,8 @@ import {
 import { conflictingAppointment } from "@/lib/appointments-db";
 import { prisma } from "@/lib/db";
 import { LIMITS } from "@/lib/limits";
-import { loadThread } from "@/lib/messages-db";
+import { counterpart, loadThread } from "@/lib/messages-db";
+import { notifyAfter } from "@/lib/push-send";
 
 const schema = z.object({
   /** Wanduhrzeit aus einem datetime-local-Feld, z. B. "2026-09-23T15:00" */
@@ -65,6 +66,15 @@ export async function POST(request: Request, context: { params: Promise<{ id: st
         durationMinutes: parsed.data.durationMinutes,
         place: parsed.data.place?.trim() ? parsed.data.place.trim() : null,
       },
+    });
+
+    notifyAfter([counterpart(thread).id], {
+      art: "terminvorschlag",
+      von: user.name,
+      // Auf dem Server formatiert - im Browser haenge die Uhrzeit sonst an
+      // der Zeitzone des Geraets.
+      wann: formatAppointment(created),
+      requestId: id,
     });
 
     return ok({ id: created.id, startsAt: created.startsAt, status: created.status }, 201);

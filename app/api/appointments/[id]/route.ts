@@ -4,7 +4,8 @@ import { fail, fromZodError, ok, withUser } from "@/lib/api";
 import { canCancel, canConfirm, formatAppointment } from "@/lib/appointments";
 import { conflictingAppointment } from "@/lib/appointments-db";
 import { prisma } from "@/lib/db";
-import { loadThread } from "@/lib/messages-db";
+import { counterpart, loadThread } from "@/lib/messages-db";
+import { notifyAfter } from "@/lib/push-send";
 
 const schema = z.object({
   // "proposed" ist der Ausgangszustand und laesst sich nicht setzen.
@@ -48,6 +49,14 @@ export async function PATCH(request: Request, context: { params: Promise<{ id: s
     await prisma.appointment.update({
       where: { id },
       data: { status: parsed.data.status, respondedAt: new Date() },
+    });
+
+    notifyAfter([counterpart(thread).id], {
+      art: "terminentschieden",
+      von: user.name,
+      wann: formatAppointment(termin),
+      zugesagt: parsed.data.status === "confirmed",
+      requestId: termin.requestId,
     });
 
     return ok({ id, status: parsed.data.status });

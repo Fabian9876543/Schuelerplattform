@@ -3,6 +3,7 @@ import { z } from "zod";
 import { fail, fromZodError, ok, withUser } from "@/lib/api";
 import { prisma } from "@/lib/db";
 import { LIMITS } from "@/lib/limits";
+import { notifyAfter } from "@/lib/push-send";
 import { studentOrDeny } from "@/lib/school-api";
 
 const schema = z.object({
@@ -92,6 +93,13 @@ export async function POST(request: Request) {
         topic: parsed.data.topic,
         message: parsed.data.message,
       },
+    });
+
+    notifyAfter([offer.userId], {
+      art: "anfrage",
+      von: user.name,
+      fach: offer.subject,
+      requestId: created.id,
     });
 
     return ok({ id: created.id }, 201);

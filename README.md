@@ -115,9 +115,80 @@ Ursache dafür, dass eine installierte App nach einem Update alte Inhalte
 zeigt – und der Fehler ist schwer zu finden. Gebraucht wird er trotzdem: Ohne
 Service Worker bietet Android das Installieren nicht an.
 
-**Push-Nachrichten** („Termin morgen um 15:00") sind damit möglich, aber nicht
-gebaut. Auf iPhone und iPad gehen sie seit 16.4 nur, wenn die App vorher zum
-Home-Bildschirm hinzugefügt wurde.
+**Benachrichtigungen** gibt es dazu – siehe unten. Auf iPhone und iPad gehen
+sie nur, wenn die App vorher zum Home-Bildschirm hinzugefügt wurde.
+
+## Benachrichtigungen
+
+Die App weiß Dinge, die man wissen will, und sagte sie bisher nicht. Jetzt
+melden sich fünf Ereignisse von selbst:
+
+| Wann | Wer wird benachrichtigt |
+|---|---|
+| jemand stellt eine Anfrage | die angefragte Person |
+| Zusage oder Ablehnung | die anfragende Person |
+| neue Nachricht im Verlauf | die Gegenseite |
+| Termin vorgeschlagen, zugesagt oder abgesagt | die Gegenseite |
+| neue Meldung | die Verwaltung der Schule |
+
+Dazu eine **tägliche Erinnerung** am Nachmittag: „2 Lernaufgaben offen ·
+Termin morgen 15:00". Wer nichts offen hat, bekommt nichts.
+
+### Drei Entscheidungen
+
+**Auf dem Sperrbildschirm steht kein Inhalt.** „Mira Sahin hat dir
+geschrieben" – nicht, was sie geschrieben hat. Eine Benachrichtigung liest
+jeder mit, der auf das liegende Handy schaut; der Inhalt gehört den beiden
+Beteiligten. Bei Meldungen steht nicht einmal, wer oder was gemeldet wurde.
+
+**Nachts ist Ruhe**, von 22 bis 7 Uhr. Nicht aufgeschoben, sondern
+weggelassen: Eine Benachrichtigung über etwas von vor neun Stunden hilft
+niemandem, und die Zahl der Ungelesenen steht ohnehin in der App. Nur die
+tägliche Erinnerung ist davon ausgenommen – sie kommt vom Zeitplan und liegt
+ohnehin am Nachmittag.
+
+**Bewertungen lösen keine aus.** „Du wurdest mit 2 Sternen bewertet" auf einem
+Sperrbildschirm ist kein Dienst am Nutzer. Ein Zurückziehen der Anfrage
+ebenfalls nicht – das sieht die Gegenseite in ihrer Liste.
+
+### Einrichten
+
+```bash
+npx web-push generate-vapid-keys
+```
+
+Die beiden Werte als `VAPID_PUBLIC_KEY` und `VAPID_PRIVATE_KEY` eintragen, dazu
+`VAPID_SUBJECT` (eine `mailto:`-Adresse, von der Spezifikation verlangt) und
+ein `CRON_SECRET`. **Ohne diese Schlüssel läuft die App unverändert weiter** –
+es wird nur nichts verschickt, und der Schalter auf der Startseite erscheint
+gar nicht. Dasselbe Muster wie bei der KI-Auswertung ohne API-Schlüssel.
+
+Die tägliche Erinnerung hängt an `vercel.json` (ein Aufruf um 14:00 UTC). Die
+Route `/api/cron/reminders` prüft das `CRON_SECRET` im `Authorization`-Kopf –
+ohne das Geheimnis bleibt sie zu, sonst könnte jeder im Netz allen Nutzern
+Benachrichtigungen schicken.
+
+### Wie es aufgebaut ist
+
+| Datei | Aufgabe |
+|---|---|
+| `lib/push.ts` | **ohne Datenbank**: Ereignis → Titel, Text, Ziel, Marke; Nachtruhe |
+| `lib/push-db.ts` | ein Eintrag je **Gerät**; Ein-/Ausschalten heißt anlegen/löschen |
+| `lib/push-send.ts` | Versand, Aufräumen abgelaufener Geräte, `notifyAfter` |
+| `components/push-toggle.tsx` | der Schalter mit dem iOS-Hinweis |
+| `public/sw.js` | zeigt die Benachrichtigung, öffnet beim Klick die richtige Seite |
+
+Verschickt wird über `after()` aus `next/server`, also **nach** der Antwort an
+den Browser: Der Versand geht an fremde Server und darf die Anfrage, die ihn
+ausgelöst hat, weder verzögern noch zum Scheitern bringen.
+
+Meldet der Push-Dienst 404 oder 410, ist das Gerät weg (App gelöscht,
+Browserdaten geleert) – das Abonnement wird dann gelöscht. Ohne dieses
+Aufräumen sammeln sich totes Gewicht und vermeidbare Fehlversuche.
+
+Gleiche **Marke** (`tag`) ersetzt eine offene Benachrichtigung statt eine
+zweite anzuzeigen: Fünf Nachrichten aus einem Verlauf werden zu einer Meldung,
+und ein zugesagter Termin ersetzt den Vorschlag.
 
 ## Auf dem Handy ausprobieren (Entwicklung)
 
@@ -311,6 +382,9 @@ Die App läuft auf jedem Hosting, das Node ausführt; mit Next.js ist
    - `DATABASE_URL` – die **gepoolte** Zeichenfolge, für die laufende App
    - `DATABASE_URL_UNPOOLED` – die **direkte**, für die Migrationen
    - `ANTHROPIC_API_KEY` – ohne ihn läuft nur die regelbasierte Auswertung
+   - `VAPID_PUBLIC_KEY`, `VAPID_PRIVATE_KEY`, `VAPID_SUBJECT` – für
+     Benachrichtigungen, siehe unten
+   - `CRON_SECRET` – schützt die tägliche Erinnerung
 
 Die Tabellen legt das Deployment selbst an: Vercel führt `vercel-build` aus,
 wenn es das Skript gibt, und das ist hier `prisma migrate deploy && next build`.
@@ -657,11 +731,11 @@ Schreibzugriffe laufen über Route Handler mit Zod-Validierung.
 ## Tests
 
 ```bash
-npm test         # 126 Tests: Terminverteilung, Matching, Fallback, KI-Schemas,
+npm test         # 143 Tests: Terminverteilung, Matching, Fallback, KI-Schemas,
                  #             Umplanung, Grenzwerte, Zugang zu Verläufen,
                  #             Gewicht der Bewertungen, Kalenderrechnung,
                  #             Terminregeln, Rollen, Fächerlisten, Beitrittscodes,
-                 #             Melde- und Sperrregeln
+                 #             Melde- und Sperrregeln, Benachrichtigungstexte
 npm run build    # Typprüfung und Produktionsbuild
 ```
 

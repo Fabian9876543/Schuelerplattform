@@ -4,7 +4,10 @@ import { fail, fromZodError, ok, withUser } from "@/lib/api";
 import { reportReasonSchema, reportTargetTypeSchema } from "@/lib/constants";
 import { prisma } from "@/lib/db";
 import { LIMITS } from "@/lib/limits";
+import { withoutActor } from "@/lib/push";
+import { notifyAfter } from "@/lib/push-send";
 import { reportsToday, resolveTarget } from "@/lib/reports-db";
+import { schoolAdminIds } from "@/lib/school-db";
 
 const schema = z.object({
   targetType: reportTargetTypeSchema,
@@ -60,6 +63,11 @@ export async function POST(request: Request) {
         note: parsed.data.note?.trim() ? parsed.data.note.trim() : null,
       },
     });
+
+    // Die Verwaltung erfaehrt, dass etwas vorliegt - nicht was. Der Wortlaut
+    // steht in der Verwaltung, nicht auf einem Sperrbildschirm. Und wer
+    // selbst gemeldet hat, bekommt darueber keine Benachrichtigung.
+    notifyAfter(withoutActor(await schoolAdminIds(user.schoolId), user.id), { art: "meldung" });
 
     // Bewusst ohne weitere Auskunft: Was aus der Meldung wird, erfaehrt die
     // meldende Person nicht - alles andere verriete etwas ueber die gemeldete.
