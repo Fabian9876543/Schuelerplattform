@@ -21,10 +21,19 @@ für die Tutorensuche.
 ```bash
 npm install
 cp .env.example .env       # DATABASE_URL eintragen, siehe unten
-npx prisma migrate dev     # legt die Tabellen an
+npm run db:deploy          # legt die Tabellen an
 npm run seed               # Beispieldaten
 npm run dev                # http://localhost:3000
 ```
+
+`db:deploy` (= `prisma migrate deploy`) spielt die vorhandenen Migrationen ab –
+das ist der richtige Weg für eine leere Datenbank, auch eine gehostete.
+`prisma migrate dev` brauchst du erst, wenn du **selbst das Schema änderst**:
+Es legt zusätzlich eine Shadow-Datenbank an, die bei gehosteten Anbietern
+unnötig ist und an fehlenden Rechten scheitern kann.
+
+Einmal komplett durchklicken? [`TESTEN.md`](TESTEN.md) führt in dreizehn
+Schritten durch alles, was die App kann.
 
 ### Woher die Datenbank kommt
 

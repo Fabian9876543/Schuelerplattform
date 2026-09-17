@@ -5,8 +5,12 @@ build/
 *.tsbuildinfo
 next-env.d.ts
 
+# Alle .env-Varianten: Eine Datei wie .env.probelauf oder .env.production
+# darf genauso wenig ins Repository wie die .env selbst.
 .env
-.env.local
+.env.*
+# ... ausser der Vorlage, die gehoert ins Repository.
+!.env.example
 
 prisma/dev.db
 prisma/dev.db-journal
