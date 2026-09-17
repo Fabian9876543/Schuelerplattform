@@ -57,16 +57,30 @@ async function main() {
   await prisma.tutorOffer.deleteMany();
   await prisma.session.deleteMany();
   await prisma.user.deleteMany();
+  await prisma.school.deleteMany();
 
   const passwordHash = await bcrypt.hash(PASSWORD, 10);
 
+  // Zwei Schulen, damit sich vorfuehren laesst, dass die Suche an der
+  // Schulgrenze endet: Die Humboldt-Schule hat ebenfalls Mathe-Nachhilfe -
+  // fuer Konten des Goethe-Gymnasiums ist sie unsichtbar.
+  const goethe = await prisma.school.create({
+    data: { name: "Goethe-Gymnasium", joinCode: "GOETHE" },
+  });
+  const humboldt = await prisma.school.create({
+    data: { name: "Humboldt-Schule", joinCode: "HUMBOLDT" },
+  });
+
   const people = [
-    { email: "lena@schule.de", name: "Lena Bergmann", gradeLevel: 11 },
-    { email: "jonas@schule.de", name: "Jonas Weber", gradeLevel: 12 },
-    { email: "mira@schule.de", name: "Mira Sahin", gradeLevel: 13 },
-    { email: "tom@schule.de", name: "Tom Krueger", gradeLevel: 11 },
-    { email: "aylin@schule.de", name: "Aylin Kaya", gradeLevel: 12 },
-    { email: "paul@schule.de", name: "Paul Hoffmann", gradeLevel: 10 },
+    { email: "lena@schule.de", name: "Lena Bergmann", gradeLevel: 11, schoolId: goethe.id },
+    { email: "jonas@schule.de", name: "Jonas Weber", gradeLevel: 12, schoolId: goethe.id },
+    { email: "mira@schule.de", name: "Mira Sahin", gradeLevel: 13, schoolId: goethe.id },
+    { email: "tom@schule.de", name: "Tom Krueger", gradeLevel: 11, schoolId: goethe.id },
+    { email: "aylin@schule.de", name: "Aylin Kaya", gradeLevel: 12, schoolId: goethe.id },
+    { email: "paul@schule.de", name: "Paul Hoffmann", gradeLevel: 10, schoolId: goethe.id },
+    // Andere Schule - taucht bei den Konten oben nie in der Suche auf
+    { email: "nils@humboldt.de", name: "Nils Brandt", gradeLevel: 12, schoolId: humboldt.id },
+    { email: "sara@humboldt.de", name: "Sara Lindqvist", gradeLevel: 13, schoolId: humboldt.id },
   ];
 
   const users: Record<string, string> = {};
@@ -107,6 +121,21 @@ async function main() {
       maxGradeLevel: 12,
       description: "Ich war ein Jahr in Irland und helfe bei Textanalyse und beim freien Sprechen.",
       topics: ["Textanalyse", "Grammatik", "Vokabeltraining"],
+    },
+    {
+      email: "nils@humboldt.de",
+      subject: "Mathematik",
+      maxGradeLevel: 12,
+      description:
+        "Andere Schule: Dieses Angebot darf fuer das Goethe-Gymnasium nicht auftauchen.",
+      topics: ["Kurvendiskussion", "Ableitungsregeln", "Extremwertaufgaben"],
+    },
+    {
+      email: "sara@humboldt.de",
+      subject: "Mathematik",
+      maxGradeLevel: 13,
+      description: "Andere Schule: ebenfalls Analysis, ebenfalls unsichtbar von aussen.",
+      topics: ["Integralrechnung", "Kurvendiskussion"],
     },
     {
       email: "jonas@schule.de",
@@ -291,7 +320,8 @@ async function main() {
     },
   });
 
-  console.log(`Fertig: ${people.length} Konten, ${offers.length} Nachhilfe-Angebote,`);
+  console.log("Fertig: 2 Schulen (Beitrittscodes GOETHE und HUMBOLDT),");
+  console.log(`${people.length} Konten, ${offers.length} Nachhilfe-Angebote,`);
   console.log(`1 ausgewertetes Lernvorhaben mit ${plan.length} Lernaufgaben.`);
   console.log(`Passwort fuer alle Konten: ${PASSWORD}`);
 }

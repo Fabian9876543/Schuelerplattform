@@ -24,7 +24,21 @@ export function fromZodError(error: ZodError): NextResponse {
   if (first?.path.length) {
     console.warn("[api] ungueltige Eingabe bei", first.path.join("."), "-", first.message);
   }
-  return fail(first?.message ?? "Ungueltige Eingabe.");
+  if (!first) return fail("Ungueltige Eingabe.");
+
+  // Fehlt ein Feld ganz, meldet Zod das auf Englisch und technisch ("expected
+  // string, received undefined") - die eigene Meldung am Feld greift dann
+  // nicht, weil sie erst fuer vorhandene Werte gilt. Hier deutsch abfangen.
+  if (first.code === "invalid_type" && first.input === undefined) {
+    const feld = first.path.at(-1);
+    return fail(
+      typeof feld === "string"
+        ? `Es fehlt eine Angabe: ${feld}.`
+        : "Es fehlt eine Angabe.",
+    );
+  }
+
+  return fail(first.message);
 }
 
 /**

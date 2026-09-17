@@ -58,6 +58,8 @@ export function MobileMenu({ user }: { user: SessionUser }) {
           <div className="mt-2 flex items-center justify-between border-t border-slate-200 pt-3 pb-1 text-sm">
             <span className="text-slate-500">
               {user.name} &middot; Klasse {user.gradeLevel}
+              <br />
+              {user.schoolName}
             </span>
             <form action="/api/auth/logout" method="post">
               <button type="submit" className="px-2 py-1 text-slate-600 underline hover:text-slate-900">

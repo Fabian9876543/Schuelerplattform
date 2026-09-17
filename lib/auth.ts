@@ -14,6 +14,9 @@ export type SessionUser = {
   email: string;
   name: string;
   gradeLevel: number;
+  /// An welche Schule der Zugang gebunden ist - Suche und Anfragen enden hier.
+  schoolId: string;
+  schoolName: string;
 };
 
 export async function hashPassword(password: string): Promise<string> {
@@ -59,7 +62,7 @@ export async function getCurrentUser(): Promise<SessionUser | null> {
 
   const session = await prisma.session.findUnique({
     where: { token },
-    include: { user: true },
+    include: { user: { include: { school: true } } },
   });
 
   if (!session) return null;
@@ -73,6 +76,8 @@ export async function getCurrentUser(): Promise<SessionUser | null> {
     email: session.user.email,
     name: session.user.name,
     gradeLevel: session.user.gradeLevel,
+    schoolId: session.user.schoolId,
+    schoolName: session.user.school.name,
   };
 }
 

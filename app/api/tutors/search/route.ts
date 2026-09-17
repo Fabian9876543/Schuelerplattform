@@ -18,6 +18,7 @@ export async function GET(request: Request) {
       topic: url.searchParams.get("topic") ?? undefined,
       gradeLevel: Number.isFinite(grade) && grade > 0 ? grade : user.gradeLevel,
       excludeUserId: user.id,
+      schoolId: user.schoolId,
     });
 
     return ok({ matches });

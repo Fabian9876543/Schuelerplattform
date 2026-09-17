@@ -48,6 +48,18 @@ export function RegisterForm() {
     >
       {error ? <ErrorNote>{error}</ErrorNote> : null}
 
+      <Field
+        label="Beitrittscode deiner Schule"
+        hint="Den bekommst du von deiner Schule. Er entscheidet, in wessen Bereich du landest."
+      >
+        <input
+          name="joinCode"
+          required
+          placeholder="z. B. BEISPIEL"
+          className={`${inputClass} uppercase`}
+        />
+      </Field>
+
       <Field label="Name">
         <input name="name" required autoComplete="name" className={inputClass} />
       </Field>

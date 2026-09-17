@@ -39,12 +39,17 @@ starten, dann `createdb schuelerplattform`. Die `DATABASE_URL` lautet dann
 
 Alle Beispielkonten haben das Passwort `geheim123`:
 
-| E-Mail | Rolle im Beispiel |
-|---|---|
-| `lena@schule.de` | hat eine fertig ausgewertete Mathe-Klausur mit Lernplan |
-| `jonas@schule.de` | gibt Nachhilfe in Mathe und Physik, hat eine offene Anfrage |
-| `mira@schule.de` | gibt Nachhilfe in Mathe bis Klasse 13 |
-| `paul@schule.de` | hat eine Anfrage an Jonas gestellt |
+| E-Mail | Schule | Rolle im Beispiel |
+|---|---|---|
+| `lena@schule.de` | Goethe-Gymnasium | hat eine fertig ausgewertete Mathe-Klausur mit Lernplan |
+| `jonas@schule.de` | Goethe-Gymnasium | gibt Nachhilfe in Mathe und Physik, hat eine offene Anfrage |
+| `mira@schule.de` | Goethe-Gymnasium | gibt Nachhilfe in Mathe bis Klasse 13 |
+| `paul@schule.de` | Goethe-Gymnasium | hat eine Anfrage an Jonas gestellt |
+| `nils@humboldt.de` | Humboldt-Schule | bietet dieselben Mathe-Themen an – für das Goethe-Gymnasium unsichtbar |
+| `sara@humboldt.de` | Humboldt-Schule | ebenso |
+
+Melde dich als Lena an und suche Nachhilfe in Mathematik: Nils und Sara tauchen
+nicht auf, obwohl sie genau diese Themen anbieten. Als Nils ist es umgekehrt.
 
 ## Auf dem Handy ausprobieren
 
@@ -218,6 +223,28 @@ zwischenspeichern und der generierte Client darin liegt.
 **Vor dem ersten echten Einsatz** noch bedenken: Die Beispielkonten aus
 `npm run seed` gehören nicht in eine öffentliche Instanz – dort das Seeding
 weglassen oder die Konten nach dem Anlegen entfernen.
+
+## Schulkontext
+
+Die Plattform endet an der Schulgrenze: Jedes Konto gehört zu einer Schule, und
+Suche wie Anfragen bleiben innerhalb der eigenen. Wer sich registriert, braucht
+den **Beitrittscode** seiner Schule – im Seed `GOETHE` und `HUMBOLDT`.
+
+Die Abschottung greift an zwei Stellen, und die zweite ist die wichtigere:
+
+1. `lib/tutors.ts` filtert die Trefferliste nach `schoolId`.
+2. `app/api/tutoring-requests/route.ts` prüft beim Anlegen einer Anfrage noch
+   einmal, dass das Angebot zur selben Schule gehört. Eine gefilterte Liste
+   hindert niemanden daran, eine fremde Angebots-ID direkt an die API zu
+   schicken – ohne diese zweite Prüfung wäre die Grenze bloß Anzeige.
+
+Die Meldung lautet in beiden Fällen „Dieses Angebot gibt es nicht mehr" und
+verrät damit nicht, dass es an einer anderen Schule existiert.
+
+**Noch nicht gebaut:** Die Schule kann bisher nicht festlegen, wer als
+Lernhelfer zugelassen wird oder welche Fächer angeboten werden. Dafür braucht
+es eine eigene Rolle und Oberfläche – erst ist die Grenze gezogen, verwalten
+lässt sich innerhalb davon später.
 
 ## Grenzen und Schutz
 

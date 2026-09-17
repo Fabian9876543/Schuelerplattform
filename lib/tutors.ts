@@ -11,9 +11,16 @@ export async function searchTutors(options: {
   topic?: string;
   gradeLevel: number;
   excludeUserId: string;
+  /// Nur Angebote aus dieser Schule - die Plattform endet an der Schulgrenze.
+  schoolId: string;
 }): Promise<MatchResult[]> {
   const offers = await prisma.tutorOffer.findMany({
-    where: { subject: options.subject, active: true, NOT: { userId: options.excludeUserId } },
+    where: {
+      subject: options.subject,
+      active: true,
+      NOT: { userId: options.excludeUserId },
+      user: { schoolId: options.schoolId },
+    },
     include: {
       topics: true,
       user: { select: { id: true, name: true } },

@@ -28,7 +28,7 @@ export function SiteHeader({ user }: { user: SessionUser | null }) {
 
             <div className="ml-auto hidden items-center gap-3 text-sm md:flex">
               <span className="text-slate-500">
-                {user.name} &middot; Klasse {user.gradeLevel}
+                {user.name} &middot; Klasse {user.gradeLevel} &middot; {user.schoolName}
               </span>
               <form action="/api/auth/logout" method="post">
                 <button type="submit" className="text-slate-600 underline hover:text-slate-900">

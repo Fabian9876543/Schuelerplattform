@@ -41,11 +41,19 @@ export async function POST(request: Request) {
 
     const offer = await prisma.tutorOffer.findUnique({
       where: { id: parsed.data.tutorOfferId },
-      include: { user: { select: { id: true, name: true } } },
+      include: { user: { select: { id: true, name: true, schoolId: true } } },
     });
 
     if (!offer || !offer.active) return fail("Dieses Angebot gibt es nicht mehr.", 404);
     if (offer.userId === user.id) return fail("Das ist dein eigenes Angebot.");
+
+    // Der eigentliche Riegel. Dass die Trefferliste nur die eigene Schule
+    // zeigt, hindert niemanden daran, eine fremde Angebots-ID direkt an die
+    // API zu schicken - deshalb wird hier noch einmal geprueft. Die Meldung
+    // verraet dabei nicht, dass es das Angebot woanders gibt.
+    if (offer.user.schoolId !== user.schoolId) {
+      return fail("Dieses Angebot gibt es nicht mehr.", 404);
+    }
 
     // Eine offene Anfrage pro Angebot und Thema reicht.
     const duplicate = await prisma.tutoringRequest.findFirst({

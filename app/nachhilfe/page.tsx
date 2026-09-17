@@ -30,7 +30,13 @@ export default async function TutorSearchPage({
   }
 
   const matches = subject
-    ? await searchTutors({ subject, topic: topic || undefined, gradeLevel: user.gradeLevel, excludeUserId: user.id })
+    ? await searchTutors({
+        subject,
+        topic: topic || undefined,
+        gradeLevel: user.gradeLevel,
+        excludeUserId: user.id,
+        schoolId: user.schoolId,
+      })
     : [];
 
   return (
@@ -85,7 +91,8 @@ export default async function TutorSearchPage({
         </EmptyState>
       ) : matches.length === 0 ? (
         <EmptyState title="Noch niemand bietet hier Nachhilfe an">
-          In {subject} gibt es aktuell kein passendes Angebot. Schau spaeter noch einmal vorbei.
+          In {subject} bietet an deiner Schule ({user.schoolName}) gerade niemand Nachhilfe an.
+          Gesucht wird nur innerhalb deiner Schule - das ist Absicht.
         </EmptyState>
       ) : (
         <div className="space-y-3">
