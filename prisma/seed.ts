@@ -53,6 +53,8 @@ async function main() {
   // einem frueheren Lauf bestehen, und die Beispielkonten kommen nicht herein.
   await prisma.loginAttempt.deleteMany();
   await prisma.report.deleteMany();
+  await prisma.explanationView.deleteMany();
+  await prisma.topicLink.deleteMany();
   await prisma.schoolSubject.deleteMany();
   await prisma.appointment.deleteMany();
   await prisma.rating.deleteMany();
@@ -71,6 +73,17 @@ async function main() {
   await prisma.session.deleteMany();
   await prisma.user.deleteMany();
   await prisma.school.deleteMany();
+
+  // Der Zwischenspeicher der Erklaerungen (Explanation) bleibt bewusst
+  // stehen: Er haengt an niemandem, sondern an Fach, Thema und Klassenstufe -
+  // und jede Zeile darin ist bezahlte API-Nutzung, die man nicht bei jedem
+  // Seed-Lauf wegwerfen sollte.
+
+  // Gepruefte Links werden nicht mitgeliefert. Ich koennte hier eine Adresse
+  // hinschreiben, die es vielleicht gibt - genau das soll die App ja nicht
+  // tun. Trag in der Verwaltung als Frau Baumann einen Link ein, den du
+  // selbst geoeffnet hast; solange keiner da ist, bietet die App eine Suche
+  // an und sagt dazu, dass sie ungeprueft ist.
 
   const passwordHash = await bcrypt.hash(PASSWORD, 10);
 
@@ -554,6 +567,7 @@ async function main() {
   console.log("Verwaltung: Frau Baumann und Mira (Goethe), Sara (Humboldt).");
   console.log("Lehrercodes: GOETHE-LEHR und HUMBOLDT-LEHR.");
   console.log("2 Meldungen zum selben Angebot: eine offen, eine abgeschlossen.");
+  console.log("Keine gepruefen Videolinks - die traegst du selbst ein (siehe TESTEN.md).");
   console.log(`Passwort fuer alle Konten: ${PASSWORD}`);
 }
 

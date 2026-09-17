@@ -5,8 +5,10 @@ import { ClaudeCoach } from "@/lib/ai/claude-coach";
 import { RuleCoach } from "@/lib/ai/rule-coach";
 import type {
   CoachEvaluation,
+  CoachExplanation,
   CoachQuiz,
   EvaluationRequest,
+  ExplanationRequest,
   LearningCoach,
   QuizRequest,
 } from "@/lib/ai/types";
@@ -74,6 +76,18 @@ class FallbackCoach implements LearningCoach {
     } catch (error) {
       console.error("[ai] Auswertung faellt auf Regeln zurueck:", describeError(error));
       return this.rule.evaluate(request);
+    }
+  }
+
+  async explain(request: ExplanationRequest): Promise<CoachExplanation> {
+    const claude = this.claude();
+    if (!claude) return this.rule.explain(request);
+
+    try {
+      return await claude.explain(request);
+    } catch (error) {
+      console.error("[ai] Erklaerung faellt auf Regeln zurueck:", describeError(error));
+      return this.rule.explain(request);
     }
   }
 }

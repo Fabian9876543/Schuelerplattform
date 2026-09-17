@@ -1,7 +1,9 @@
 import type {
   CoachEvaluation,
+  CoachExplanation,
   CoachQuiz,
   EvaluationRequest,
+  ExplanationRequest,
   LearningCoach,
   QuizRequest,
 } from "@/lib/ai/types";
@@ -160,5 +162,55 @@ export class RuleCoach implements LearningCoach {
           }". Der Lernplan setzt genau dort an.`;
 
     return { summary, overallScore, source: "rule", questionFeedback, deficits };
+  }
+
+  /**
+   * Die Erklaerung ohne KI.
+   *
+   * Hier steht **kein Fachtext**, und das wird auch so gesagt: Eine erfundene
+   * Erklaerung zur Kurvendiskussion waere schlimmer als keine - man merkt ihr
+   * den Fehler erst in der Klausur an. Was ohne Fachwissen trotzdem stimmt,
+   * ist der Weg: sich ein Beispiel vornehmen, es selbst rechnen, es jemandem
+   * erklaeren. Genau der steht hier, und er gilt in jedem Fach.
+   *
+   * Der Text nennt keinen Grund fuer das Fehlen der KI: Er erscheint sowohl
+   * ohne Schluessel als auch dann, wenn die API gerade klemmt. "Ohne
+   * Schluessel" waere im zweiten Fall schlicht falsch.
+   */
+  async explain(request: ExplanationRequest): Promise<CoachExplanation> {
+    const thema = request.topic;
+
+    return {
+      source: "rule",
+      body: {
+        summary:
+          `Zu "${thema}" steht hier kein Fachtext: Die KI ist gerade nicht dabei, und raten hilft dir ` +
+          "vor einer Klausur nicht. Was ich dir geben kann, ist der Weg, mit dem man sich ein Thema " +
+          "selbst erschliesst - und darunter stehen die Links, die deine Schule geprueft hat.",
+        steps: [
+          {
+            title: "Such dir ein geloestes Beispiel",
+            body: `Im Heft, im Buch oder in einer alten Klausur: eine Aufgabe zu "${thema}", bei der die Loesung dabeisteht.`,
+          },
+          {
+            title: "Rechne es selbst, mit abgedeckter Loesung",
+            body: "Schreib jeden Schritt auf. Die Stelle, an der du haengenbleibst, ist deine eigentliche Luecke - nicht das ganze Thema.",
+          },
+          {
+            title: "Erklaer es laut",
+            body: "Jemandem, oder der Wand. Wo du ins Stocken geraetst, sitzt es noch nicht.",
+          },
+        ],
+        example:
+          `So sieht das konkret aus: Du nimmst die letzte Aufgabe zu "${thema}" aus dem Unterricht, deckst die ` +
+          "Loesung ab und rechnest sie noch einmal. Kommst du bei Schritt drei nicht weiter, ist das die eine " +
+          "Frage, die du stellen musst - im Unterricht oder bei jemandem aus deiner Stufe.",
+        pitfalls: [
+          "Die Loesung ansehen und denken, man koenne es jetzt. Nachvollziehen ist leichter als selbst machen.",
+          "Das ganze Thema noch einmal lesen, statt die eine Stelle zu suchen, an der es hakt.",
+        ],
+        checkQuestion: `Kannst du "${thema}" in zwei Minuten jemandem erklaeren, ohne ins Heft zu sehen?`,
+      },
+    };
   }
 }

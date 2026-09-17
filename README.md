@@ -32,7 +32,7 @@ das ist der richtige Weg für eine leere Datenbank, auch eine gehostete.
 Es legt zusätzlich eine Shadow-Datenbank an, die bei gehosteten Anbietern
 unnötig ist und an fehlenden Rechten scheitern kann.
 
-Einmal komplett durchklicken? [`TESTEN.md`](TESTEN.md) führt in dreizehn
+Einmal komplett durchklicken? [`TESTEN.md`](TESTEN.md) führt in sechzehn
 Schritten durch alles, was die App kann.
 
 ### Woher die Datenbank kommt
@@ -367,6 +367,88 @@ ist. **Wann** gelernt wird, rechnet `lib/planning.ts` deterministisch aus:
 Dadurch kann kein Termin hinter dem Klausurdatum landen, und die Verteilung ist
 testbar statt vom Modell abhängig.
 
+## Dranbleiben: Serie und Wochenbilanz
+
+Ein Haken ohne Zeitpunkt kennt kein Datum. Deshalb hält `StudyTask.doneAt`
+fest, **wann** abgehakt wurde – und wird beim Zurücknehmen wieder gelöscht,
+damit ein versehentliches Häkchen nicht dauerhaft mitzählt.
+
+Daraus rechnet `lib/streak.ts` zwei Zahlen, die auf der Startseite stehen:
+
+- **Serie**: wie viele Kalendertage am Stück etwas geschafft wurde. Der heutige
+  Tag zählt mit, **muss aber nicht dabei sein** – erst wenn auch gestern leer
+  ist, ist die Serie vorbei. Alles andere wäre eine Uhr, die einem um
+  Mitternacht die Arbeit von fünf Tagen wegnimmt.
+- **Wochenbilanz**: was seit Montag abgehakt wurde.
+
+Die Karte erscheint nur, wenn es etwas zu zeigen gibt: „0 Tage in Folge" ist
+keine Ermutigung, sondern ein Vorwurf.
+
+**Bewusst nicht gebaut:** Abzeichen und eine Bestenliste. Eine öffentliche
+Rangliste innerhalb einer Klasse ist ein Pranger, kein Ansporn – und wer
+ohnehin hinterherhinkt, steht dann auch noch unten.
+
+Gerechnet wird über Kalendertage aus den örtlichen Datumsbestandteilen
+(`dayKey()` in `lib/calendar.ts`), nicht über UTC: sonst wäre abends alles einen
+Tag zu weit.
+
+## Erklären lassen, bevor man jemanden sucht
+
+Bei einer Lücke gab es genau einen Weg: einen Mitschüler suchen. Nachts um zehn
+vor der Klausur hilft das nicht. Jetzt steht eine Stufe davor – ein Knopf
+„Erklär's mir" an jeder Lücke und an jeder Lernaufgabe mit Thema:
+
+```
+Erklärung  →  geprüfte Links der Schule (sonst: vorbereitete Suche)
+           →  „Hat das geholfen?"  →  Nein  →  direkt in die Nachhilfesuche
+```
+
+Das „Nein" ist der eigentliche Punkt: Es ist kein Rückschritt, sondern der
+vorgesehene nächste Schritt, mit vorbelegtem Fach und Thema.
+
+### Der Zwischenspeicher
+
+Erklärungen liegen **plattformweit** unter Fach + Thema + Klassenstufe
+(`Explanation`, Schlüssel über `normalizeTopic()`). „Kurvendiskussion,
+Mathematik, Klasse 11" ist für alle dieselbe Frage; der zweite Schüler bekommt
+die Antwort sofort und ohne Kosten. Persönliches steht nicht darin – kein Name,
+keine Antwort aus einem Selbsttest.
+
+Gespeichert wird **nur**, was die KI geschrieben hat. Die Rückfallebene
+entsteht jedes Mal neu; läge sie im Speicher, würde ein später hinterlegter
+Schlüssel nichts mehr ändern.
+
+Ohne API-Schlüssel (oder wenn die API klemmt) gibt es **keinen erfundenen
+Fachtext**, sondern den Weg, wie man sich ein Thema selbst erschließt – und der
+Hinweis, dass das die Rückfallebene ist, steht dabei. Dieselbe Linie wie bei der
+Auswertung: lieber ehrlich weniger als überzeugend falsch.
+
+### Videos: was rechtlich geht
+
+Kein Rechtsrat, aber die Linie dieser App:
+
+| | Entscheidung |
+|---|---|
+| **Link setzen** auf frei zugängliche Seiten | Gemacht. Zulässig (EuGH *Svensson* C-466/12, *GS Media* C-160/15); ohne Gewinnerzielungsabsicht greift die verschärfte Prüfpflicht nicht – die Lehrkraft prüft trotzdem. |
+| **Einbetten (iframe/Framing)** | Nicht gemacht, obwohl meist erlaubt (*BestWater*, *VG Bild-Kunst* C-392/19). Ein eingebettetes Video lädt beim Schüler Daten beim fremden Anbieter, bevor er auf Abspielen geklickt hat. Bei Minderjährigen ist das die schlechtere Wahl, unabhängig vom Urheberrecht. |
+| **Vorschaubilder fremder Server** | Nein, gleiche Begründung. |
+| **KI erfindet Video-Links** | Nie. Modelle halluzinieren Video-Kennungen; ein toter oder falscher Link ist schlimmer als kein Link. |
+| **YouTube-API oder Scraping** | Nein – Schlüssel, Kontingent, Nutzungsbedingungen, und eine Lehrkraft macht es besser. |
+
+Gepflegt werden die Links in der Verwaltung, **nur von Lehrkräften**
+(`canCurateLinks()` in `lib/links.ts`) – dieselbe Linie wie beim Sperren. Eine
+Schülerin mit Verwaltungsrechten sieht die Liste, aber kein Formular.
+
+Technisch abgesichert: nur `https` (per `CHECK` in der Datenbank, nicht nur im
+Formular), keine Anmeldedaten in der Adresse, Zieldomain immer sichtbar neben
+dem Titel, und jeder Link öffnet mit `rel="noopener noreferrer"` und ohne
+Referrer.
+
+Hat die Schule zu einem Thema nichts hinterlegt, gibt es eine **vorbereitete
+Suche** („Mathematik Kurvendiskussion einfach erklärt") mit dem Hinweis, dass
+die Treffer niemand geprüft hat. Kein erfundenes Video – und es ist genau das,
+was man sonst selbst eintippen würde.
+
 ## Online stellen
 
 Die App läuft auf jedem Hosting, das Node ausführt; mit Next.js ist
@@ -681,12 +763,14 @@ der nur beliebt ist.**
 | Grenze | Wert | Wogegen |
 |---|---|---|
 | Selbsttests je Nutzer und Tag | 10 | deckelt die API-Kosten auf ~1,60 USD pro Nutzer |
+| Erklärungen je Nutzer und Tag | 20 | zählt nur, was die KI wirklich gefragt hat – Treffer im Zwischenspeicher sind frei |
 | Lernvorhaben je Nutzer | 50 | bremst automatisierte Schleifen |
 | Fehlversuche je E-Mail / 15 Min. | 10 | Durchprobieren von Passwörtern |
 | Freitextantwort | 5 000 Zeichen | die Antwort geht in den KI-Prompt, jedes Zeichen kostet |
 | Nachricht | 2 000 Zeichen | begrenzt, was eine einzelne Anfrage in der Datenbank ablegt |
 | Kommentar zur Bewertung | 500 Zeichen | ein Satz reicht, kein Aufsatz |
 | Meldungen je Nutzer und Tag | 10 | bremst das Zuschütten mit Meldungen |
+| Titel / Adresse eines Links | 150 / 500 Zeichen | eine Adresse, kein Aufsatz |
 
 Die Anmeldesperre greift **auch beim richtigen Passwort** – sonst könnte man
 weiter durchprobieren und beim Treffer trotzdem hereinkommen. Gezählt wird nach
@@ -709,6 +793,11 @@ lib/
   planning.ts        verteilt Lernaufgaben auf Kalendertage
   calendar.ts        Monatsraster, Tagesschlüssel, Monatssprünge
   matching.ts        bewertet Nachhilfe-Angebote gegen ein Defizit
+  streak.ts          Serie und Wochenbilanz aus den Abhak-Zeitpunkten
+  explanations.ts    Schlüssel und Prüfung des Erklärungs-Zwischenspeichers
+  explanations-db.ts die Abfragen dazu, samt Rückmeldung "hat das geholfen?"
+  links.ts           geprüfte Links: wer pflegen darf, Adressprüfung, Themen-Treffer
+  links-db.ts        die Abfragen dazu, immer an der Schulgrenze
   tutors.ts          Datenzugriff für die Tutorensuche
   messages.ts        Regeln für den Nachrichtenverlauf (wer darf lesen, wer schreiben)
   messages-db.ts     die Abfragen dazu, jede mit Nutzerprüfung
@@ -731,11 +820,13 @@ Schreibzugriffe laufen über Route Handler mit Zod-Validierung.
 ## Tests
 
 ```bash
-npm test         # 143 Tests: Terminverteilung, Matching, Fallback, KI-Schemas,
+npm test         # 187 Tests: Terminverteilung, Matching, Fallback, KI-Schemas,
                  #             Umplanung, Grenzwerte, Zugang zu Verläufen,
                  #             Gewicht der Bewertungen, Kalenderrechnung,
                  #             Terminregeln, Rollen, Fächerlisten, Beitrittscodes,
-                 #             Melde- und Sperrregeln, Benachrichtigungstexte
+                 #             Melde- und Sperrregeln, Benachrichtigungstexte,
+                 #             Serie und Wochenbilanz, Adressprüfung und
+                 #             Themen-Treffer bei den geprüften Links
 npm run build    # Typprüfung und Produktionsbuild
 ```
 

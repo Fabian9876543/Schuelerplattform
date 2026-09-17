@@ -1,4 +1,5 @@
 import { prisma } from "@/lib/db";
+import { linksOfSchool } from "@/lib/links-db";
 import { reportsForSchool } from "@/lib/reports-db";
 
 /**
@@ -30,7 +31,7 @@ export async function schoolSubjects(schoolId: string): Promise<string[]> {
 
 /** Alles, was die Verwaltungsseite anzeigt. */
 export async function schoolOverview(schoolId: string) {
-  const [school, members, offers, faecher, reports, zahlen] = await Promise.all([
+  const [school, members, offers, faecher, reports, links, zahlen] = await Promise.all([
     prisma.school.findUniqueOrThrow({
       where: { id: schoolId },
       select: {
@@ -75,6 +76,7 @@ export async function schoolOverview(schoolId: string) {
     }),
     schoolSubjects(schoolId),
     reportsForSchool(schoolId),
+    linksOfSchool(schoolId),
     Promise.all([
       prisma.tutoringRequest.count({ where: { requester: { schoolId } } }),
       prisma.appointment.count({
@@ -89,6 +91,7 @@ export async function schoolOverview(schoolId: string) {
     offers,
     faecher,
     reports,
+    links,
     anfragen: zahlen[0],
     termine: zahlen[1],
   };

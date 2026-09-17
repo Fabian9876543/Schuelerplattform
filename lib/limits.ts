@@ -13,6 +13,14 @@
 export const LIMITS = {
   /** Selbsttests je Nutzer und Tag - deckelt die Kosten auf ~1,60 USD pro Nutzer */
   assessmentsPerDay: 10,
+  /**
+   * Erklaerungen je Nutzer und Tag, die die KI wirklich gefragt haben.
+   * Ein Aufruf kostet geschaetzt 0,04 USD - anders als bei Selbsttest und
+   * Auswertung ist das nicht gemessen. Treffer im Zwischenspeicher zaehlen
+   * nicht mit: Sie kosten nichts, und wer eine Erklaerung noch einmal
+   * aufschlaegt, soll dafuer nicht bestraft werden.
+   */
+  explanationsPerDay: 20,
   /** Lernvorhaben je Nutzer - grosszuegig fuer echte Nutzung, bremst Schleifen */
   goalsPerUser: 50,
   /** Fehlversuche je E-Mail im Zeitfenster */
@@ -34,6 +42,10 @@ export const LIMITS = {
   devicesPerUser: 10,
   /** Was die meldende Person dazuschreibt */
   reportNoteLength: 500,
+  /** Titel eines gepruefen Links */
+  linkTitleLength: 150,
+  /** Adresse eines gepruefen Links */
+  linkUrlLength: 500,
 } as const;
 
 // --- reine Funktionen, ohne Datenbank ---------------------------------------

@@ -4,6 +4,7 @@ import { notFound } from "next/navigation";
 import { StartAssessment } from "@/app/lernplan/[id]/start-assessment";
 import { StudyPlan } from "@/app/lernplan/[id]/study-plan";
 import { TopicMastery } from "@/app/lernplan/[id]/topic-mastery";
+import { ExplainPanel } from "@/components/explain-panel";
 import { Card, EmptyState, LinkButton, PageTitle, SeverityBadge } from "@/components/ui";
 import { requireStudent } from "@/lib/auth";
 import { prisma } from "@/lib/db";
@@ -168,6 +169,19 @@ export default async function GoalPage({ params }: { params: Promise<{ id: strin
                           </Link>
                         )}
                       </div>
+
+                      {/* Die Stufe vor der Nachhilfe: erst erklaeren lassen.
+                          Steht unter der ganzen Karte, nicht in der Spalte -
+                          eine Erklaerung in halber Breite liest sich schlecht. */}
+                      {erledigt ? null : (
+                        <div className="mt-3">
+                          <ExplainPanel
+                            subject={goal.subject}
+                            topic={deficit.topic.name}
+                            deficitId={deficit.id}
+                          />
+                        </div>
+                      )}
                     </Card>
                   );
                 })}
@@ -183,6 +197,7 @@ export default async function GoalPage({ params }: { params: Promise<{ id: strin
               </EmptyState>
             ) : (
               <StudyPlan
+                subject={goal.subject}
                 tasks={evaluation.studyTasks.map((task) => ({
                   id: task.id,
                   title: task.title,

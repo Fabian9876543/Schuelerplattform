@@ -6,11 +6,13 @@ import {
   ReportActions,
   SubjectPicker,
 } from "@/app/schule/school-controls";
+import { LinkManager } from "@/app/schule/link-manager";
 import { Card, PageTitle } from "@/components/ui";
 import { requireAdmin } from "@/lib/auth";
 import { formatDate } from "@/lib/format";
+import { canCurateLinks } from "@/lib/links";
 import { canBlockAccounts, describeReason, describeTarget } from "@/lib/reports";
-import { describeGrade } from "@/lib/school";
+import { allowedSubjects, describeGrade } from "@/lib/school";
 import { schoolOverview } from "@/lib/school-db";
 
 /**
@@ -24,9 +26,8 @@ import { schoolOverview } from "@/lib/school-db";
  */
 export default async function SchoolPage() {
   const user = await requireAdmin();
-  const { school, members, offers, faecher, reports, anfragen, termine } = await schoolOverview(
-    user.schoolId,
-  );
+  const { school, members, offers, faecher, reports, links, anfragen, termine } =
+    await schoolOverview(user.schoolId);
 
   const offen = offers.filter((offer) => !offer.approved);
   const freigegeben = offers.filter((offer) => offer.approved);
@@ -34,6 +35,9 @@ export default async function SchoolPage() {
   // Sperren duerfen nur Lehrkraefte - eine Schuelerin mit Verwaltungsrechten
   // sieht den Knopf gar nicht erst.
   const darfSperren = canBlockAccounts(user);
+  // Links pflegen ist wie Sperren Sache einer Lehrkraft - eine Schuelerin mit
+  // Verwaltungsrechten sieht die Liste, aber kein Formular.
+  const darfLinksPflegen = canCurateLinks(user);
 
   return (
     <div className="space-y-6">
@@ -228,6 +232,20 @@ export default async function SchoolPage() {
           erlaubt.
         </p>
         <SubjectPicker gewaehlt={faecher} />
+      </Card>
+
+      <Card>
+        <h2 className="mb-1 font-medium text-slate-900">Erklaerseiten und Videos</h2>
+        <p className="mb-3 text-sm text-slate-600">
+          Was ihr hier zu einem Thema hinterlegt, steht bei genau diesem Thema neben der
+          Erklaerung. Verlinkt wird, nicht eingebettet - es laedt also nichts vom fremden
+          Anbieter, solange niemand klickt.
+        </p>
+        <LinkManager
+          links={links}
+          faecher={allowedSubjects(faecher)}
+          darfPflegen={darfLinksPflegen}
+        />
       </Card>
 
       <section>

@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 
+import { ExplainPanel } from "@/components/explain-panel";
 import { formatDayWithWeekday, formatMinutes } from "@/lib/format";
 
 interface Task {
@@ -15,7 +16,7 @@ interface Task {
   topicName: string | null;
 }
 
-export function StudyPlan({ tasks }: { tasks: Task[] }) {
+export function StudyPlan({ tasks, subject }: { tasks: Task[]; subject: string }) {
   // Die Aufgaben kommen aus den Props und bleiben es auch: Ein useState(tasks)
   // wuerde den ersten Stand einfrieren, sodass Aenderungen von aussen - etwa
   // weil ein Thema jetzt sitzt und Aufgaben entfallen - nie ankaemen.
@@ -75,44 +76,57 @@ export function StudyPlan({ tasks }: { tasks: Task[] }) {
             </h3>
             <div className="space-y-2">
               {dayTasks.map((task) => (
-                <label
+                <div
                   key={task.id}
-                  className={`flex gap-3 rounded-lg border p-4 transition ${
+                  className={`rounded-lg border p-4 transition ${
                     task.skipped
                       ? "border-dashed border-emerald-200 bg-emerald-50/40"
                       : task.done
-                        ? "cursor-pointer border-slate-200 bg-slate-50"
-                        : "cursor-pointer border-slate-200 bg-white hover:border-brand-200"
+                        ? "border-slate-200 bg-slate-50"
+                        : "border-slate-200 bg-white hover:border-brand-200"
                   }`}
                 >
-                  <input
-                    type="checkbox"
-                    checked={task.done}
-                    disabled={task.skipped}
-                    onChange={(event) => toggle(task.id, event.target.checked)}
-                    className="mt-1 h-4 w-4 shrink-0 accent-indigo-600 disabled:opacity-40"
-                  />
-                  <div className="min-w-0">
-                    <div className="flex flex-wrap items-center gap-2">
-                      <span
-                        className={`font-medium ${task.done ? "text-slate-400 line-through" : "text-slate-900"}`}
-                      >
-                        {task.title}
-                      </span>
-                      <span className="text-xs text-slate-500">
-                        {formatMinutes(task.estimatedMinutes)}
-                      </span>
-                      {task.skipped ? (
-                        <span className="rounded-full bg-emerald-100 px-2 py-0.5 text-xs font-medium text-emerald-700">
-                          entfallen &ndash; Thema sitzt
+                  {/* Das Label umschliesst nur das Abhaken. Laege der
+                      Erklaer-Knopf darin, wuerde jeder Klick darauf die
+                      Aufgabe abhaken - ein Klick, zwei Wirkungen. */}
+                  <label className={`flex gap-3 ${task.skipped ? "" : "cursor-pointer"}`}>
+                    <input
+                      type="checkbox"
+                      checked={task.done}
+                      disabled={task.skipped}
+                      onChange={(event) => toggle(task.id, event.target.checked)}
+                      className="mt-1 h-4 w-4 shrink-0 accent-indigo-600 disabled:opacity-40"
+                    />
+                    <div className="min-w-0">
+                      <div className="flex flex-wrap items-center gap-2">
+                        <span
+                          className={`font-medium ${task.done ? "text-slate-400 line-through" : "text-slate-900"}`}
+                        >
+                          {task.title}
                         </span>
-                      ) : null}
+                        <span className="text-xs text-slate-500">
+                          {formatMinutes(task.estimatedMinutes)}
+                        </span>
+                        {task.skipped ? (
+                          <span className="rounded-full bg-emerald-100 px-2 py-0.5 text-xs font-medium text-emerald-700">
+                            entfallen &ndash; Thema sitzt
+                          </span>
+                        ) : null}
+                      </div>
+                      <p className={`mt-1 text-sm ${task.done ? "text-slate-400" : "text-slate-600"}`}>
+                        {task.description}
+                      </p>
                     </div>
-                    <p className={`mt-1 text-sm ${task.done ? "text-slate-400" : "text-slate-600"}`}>
-                      {task.description}
-                    </p>
-                  </div>
-                </label>
+                  </label>
+
+                  {/* Hilfe genau dort, wo man haengenbleibt - aber nicht bei
+                      dem, was schon erledigt oder entfallen ist. */}
+                  {task.topicName && !task.done && !task.skipped ? (
+                    <div className="mt-3 pl-7">
+                      <ExplainPanel subject={subject} topic={task.topicName} />
+                    </div>
+                  ) : null}
+                </div>
               ))}
             </div>
           </div>

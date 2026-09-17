@@ -3,10 +3,13 @@ import { zodOutputFormat } from "@anthropic-ai/sdk/helpers/zod";
 
 import {
   evaluationResultSchema,
+  explanationSchema,
   quizSchema,
   type CoachEvaluation,
+  type CoachExplanation,
   type CoachQuiz,
   type EvaluationRequest,
+  type ExplanationRequest,
   type LearningCoach,
   type QuizRequest,
 } from "@/lib/ai/types";
@@ -23,7 +26,7 @@ const MAX_TOKENS = 16000;
  */
 /** Verbrauch eines Aufrufs - fuer die Kostenkontrolle in scripts/ki-probe.ts. */
 export interface CoachUsage {
-  step: "quiz" | "evaluation";
+  step: "quiz" | "evaluation" | "explanation";
   inputTokens: number;
   outputTokens: number;
   durationMs: number;
@@ -231,5 +234,54 @@ export class ClaudeCoach implements LearningCoach {
       questionFeedback,
       deficits,
     };
+  }
+
+  /**
+   * Erklaert ein Thema - die Stufe vor der Nachhilfe.
+   *
+   * Deutlich kleiner angesetzt als Selbsttest und Auswertung: Es geht um eine
+   * Erklaerung, nicht um eine Unterrichtsreihe. Der Prompt verlangt
+   * ausdruecklich ein vollstaendiges Beispiel und die typischen Fehler - daran
+   * haengt es meistens, nicht an der Definition.
+   */
+  async explain(request: ExplanationRequest): Promise<CoachExplanation> {
+    const startedAt = Date.now();
+
+    const response = await this.client.messages.parse({
+      model: MODEL,
+      max_tokens: 8000,
+      thinking: { type: "adaptive" },
+      system:
+        "Du bist eine erfahrene Lehrkraft und erklaerst einer Schuelerin oder einem Schueler in Deutschland ein Thema, " +
+        "an dem sie oder er gerade haengt. Du schreibst auf Deutsch, in der Du-Form, fachlich korrekt und ohne " +
+        "Fachbegriffe, die du nicht erklaerst. Du erfindest nichts: Was du nicht sicher weisst, laesst du weg. " +
+        "Du verweist nicht auf Videos oder Internetseiten - Links kommen in dieser App von Lehrkraeften, nicht von dir.",
+      messages: [
+        {
+          role: "user",
+          content: [
+            `Erklaere das Thema "${request.topic}" im Fach ${request.subject} fuer Klassenstufe ${request.gradeLevel}.`,
+            "",
+            "Vorgaben:",
+            "- summary: worum es geht, 2 bis 3 Saetze.",
+            "- steps: der Weg durch das Thema in 2 bis 5 Schritten, je mit kurzer Ueberschrift.",
+            "- example: ein vollstaendig durchgerechnetes oder durchgespieltes Beispiel. Keine Andeutung, sondern der ganze Weg.",
+            "- pitfalls: bis zu 3 Fehler, die an genau dieser Stelle typisch sind.",
+            "- checkQuestion: eine Frage, an der man selbst merkt, ob man es verstanden hat.",
+            "- Richte dich nach der Klassenstufe: kein Stoff, der dort noch nicht dran war.",
+          ].join("\n"),
+        },
+      ],
+      output_config: { format: zodOutputFormat(explanationSchema) },
+    });
+
+    this.track("explanation", response.usage, startedAt);
+
+    const parsed = response.parsed_output;
+    if (!parsed) {
+      throw new Error("Claude hat keine verwertbare Erklaerung geliefert.");
+    }
+
+    return { source: "ai", body: parsed };
   }
 }

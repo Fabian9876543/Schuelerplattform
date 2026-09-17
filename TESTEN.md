@@ -1,6 +1,6 @@
 # Einmal durch die App
 
-Dreizehn Schritte, die jede gebaute Funktion einmal zeigen. Dauert etwa zehn
+Sechzehn Schritte, die jede gebaute Funktion einmal zeigen. Dauert etwa zwölf
 Minuten. Passwort für **alle** Konten: `geheim123`.
 
 Die Schritte bauen aufeinander auf – wenn du eine Anfrage stellst, brauchst du
@@ -18,9 +18,13 @@ npm run dev                # http://localhost:3000
 
 > **Ohne API-Schlüssel** läuft die regelbasierte Auswertung. Sie erzeugt nur
 > Freitextfragen und richtet sich nach der Selbsteinschätzung statt nach den
-> Antworten – das ist die eingebaute Rückfallebene, kein Fehler. Mit Schlüssel
-> (`ANTHROPIC_API_KEY` in der `.env`) übernimmt Claude Fragen und Auswertung;
-> ein Durchlauf kostet rund 0,16 USD.
+> Antworten – das ist die eingebaute Rückfallebene, kein Fehler. Dasselbe gilt
+> für „Erklär's mir" in Schritt 15: Ohne Schlüssel steht dort kein Fachtext sondern
+> der Weg, wie man sich ein Thema selbst erarbeitet – ausdrücklich als
+> Rückfallebene gekennzeichnet. Mit Schlüssel
+> (`ANTHROPIC_API_KEY` in der `.env`) übernimmt Claude Fragen, Auswertung und
+> Erklärungen; ein Durchlauf kostet rund 0,16 USD, eine Erklärung grob 0,04 USD
+> und beim zweiten Mal nichts mehr.
 
 ## Der Rundgang
 
@@ -88,11 +92,35 @@ Als Frau Baumann erscheint die Meldung unter „Meldungen" – mit dem Wortlaut 
 Nachricht, aber ohne den Rest des Verlaufs. Die Zahl offener Meldungen steht
 oben in der Navigation.
 
+### Dranbleiben und Hilfe holen
+
+**14. Als `lena@schule.de` im Lernplan eine Aufgabe abhaken → zurück auf die
+Startseite.**
+Oben steht „1 Tag in Folge" und „Diese Woche 1 Aufgabe geschafft". Haken wieder
+zurücknehmen, Startseite neu laden: Die Karte ist weg. *Sie erscheint nur, wenn
+es etwas zu zeigen gibt – „0 Tage in Folge" wäre ein Vorwurf.*
+
+**15. Bei einer Lücke auf „Erklär's mir".**
+Es klappt eine Erklärung auf, darunter ein Link auf eine vorbereitete Suche mit
+dem Hinweis, dass die niemand geprüft hat. Ganz unten: „Hat das geholfen?" →
+**Nein** → der Weg führt direkt in die Nachhilfesuche, Fach und Thema schon
+ausgefüllt. *Das „Nein" ist kein Rückschritt, sondern der vorgesehene nächste
+Schritt.*
+
+**16. Als `baumann@schule.de` → „Schule" → „Erklärseiten und Videos".**
+Fach `Mathematik`, Thema `Kurvendiskussion`, einen Titel und eine Adresse
+eintragen – **nimm einen Link, den du selbst geöffnet hast.** Eine
+`http://`-Adresse lehnt das Formular ab. Danach als Lena bei „Kurvendiskussion"
+wieder auf „Erklär's mir": Jetzt steht dort „Von deiner Schule geprüft" mit
+deinem Link statt der Suche. Als `mira@schule.de` (Schülerin mit
+Verwaltungsrechten): Liste sichtbar, aber kein Formular. *Wer eine Klasse auf
+fremde Seiten schickt, steht dafür gerade – das ist Sache einer Lehrkraft.*
+
 ## Auf dem Handy
 
 `npm run dev` zeigt beim Start zwei Adressen. Die hinter `Network:` im
 Handy-Browser öffnen, Handy im selben WLAN. Lohnt sich vor allem für die
-Schritte 1–3 und 8 – die Oberfläche ist für 390 px Breite gebaut.
+Schritte 1–3, 8 und 15 – die Oberfläche ist für 390 px Breite gebaut.
 
 ## Für die Präsentation: die Grenze vorführen
 

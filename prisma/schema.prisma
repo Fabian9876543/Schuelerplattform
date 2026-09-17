@@ -113,6 +113,7 @@ model School {
 
   users    User[]
   subjects SchoolSubject[]
+  links    TopicLink[]
   reports  Report[]
 }
 
@@ -163,6 +164,8 @@ model User {
   proposedMeetings  Appointment[]     @relation("AppointmentsProposed")
   approvedOffers    TutorOffer[]      @relation("OffersApproved")
   pushSubscriptions PushSubscription[]
+  explanationViews  ExplanationView[]
+  curatedLinks      TopicLink[]       @relation("LinksCurated")
   filedReports      Report[]          @relation("ReportsFiled")
   reportsAbout      Report[]          @relation("ReportsAbout")
   handledReports    Report[]          @relation("ReportsHandled")
@@ -562,6 +565,92 @@ model PushSubscription {
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([userId])
+}
+
+/// Eine Erklaerung zu einem Thema - einmal erzeugt, fuer alle da.
+///
+/// Der Zwischenspeicher ist plattformweit und nicht je Nutzer: "Kurvendiskussion,
+/// Mathematik, Klasse 11" ist fuer alle dieselbe Frage. Gespeichert wird nichts
+/// Persoenliches - kein Name, keine Antwort aus einem Selbsttest, nur Fach,
+/// Thema und Klassenstufe. Der zweite Schueler mit derselben Frage bekommt die
+/// Antwort deshalb sofort und ohne Kosten.
+///
+/// `topicKey` ist das ueber normalizeTopic() vereinheitlichte Thema, damit
+/// "Kurvendiskussion" und "kurven-diskussion" denselben Eintrag treffen.
+model Explanation {
+  id         String @id @default(cuid())
+  subject    String
+  topicKey   String
+  /// Wie das Thema geschrieben war, als zum ersten Mal gefragt wurde
+  topic      String
+  gradeLevel Int
+  /// Die Erklaerung als JSON-String; beim Lesen per Zod geprueft, nie mit
+  /// blankem JSON.parse - dieselbe Hausregel wie bei Question.optionsJson.
+  bodyJson   String
+  /// Von Claude oder aus der Rueckfallebene
+  source     EvaluationSource
+  createdAt  DateTime @default(now())
+
+  views ExplanationView[]
+
+  @@unique([subject, topicKey, gradeLevel])
+}
+
+/// Wer eine Erklaerung aufgerufen hat - und ob sie geholfen hat.
+///
+/// Der Eintrag traegt doppelt: Er haelt die Antwort auf "Hat das geholfen?"
+/// fest und ist zugleich der Zaehler fuer das Tageskontingent. Gezaehlt wird
+/// nur, was die KI wirklich gefragt hat (`generated`); ein Treffer im
+/// Zwischenspeicher kostet nichts und darf niemandem das Kontingent wegnehmen.
+model ExplanationView {
+  id            String   @id @default(cuid())
+  userId        String
+  explanationId String
+  generated     Boolean  @default(false)
+  /// null, solange nichts gesagt wurde - "nein" und "noch nichts" sind zweierlei
+  helpful       Boolean?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  user        User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  explanation Explanation @relation(fields: [explanationId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, explanationId])
+  @@index([explanationId])
+}
+
+/// Ein von einer Lehrkraft gepruefter Link zu einem Thema.
+///
+/// Verlinkt wird, nicht eingebettet: Ein eingebettetes Video laedt beim
+/// Schueler Daten beim fremden Anbieter, bevor er ueberhaupt auf Abspielen
+/// geklickt hat. Bei Minderjaehrigen ist ein schlichter Link die bessere Wahl -
+/// und die Adresse muss https sein, was die Datenbank selbst durchsetzt (CHECK
+/// in der Migration).
+///
+/// Eintragen duerfen nur Lehrkraefte (siehe canCurateLinks in lib/links.ts):
+/// Wer eine Klasse auf fremde Inhalte schickt, traegt eine Verantwortung, die
+/// nicht unter Gleichaltrige gehoert.
+model TopicLink {
+  id        String @id @default(cuid())
+  schoolId  String
+  subject   String
+  /// ueber normalizeTopic() vereinheitlicht - Schluessel fuer die Zuordnung
+  topicKey  String
+  /// Anzeigeform des Themas, wie die Lehrkraft es geschrieben hat
+  topic     String
+  title     String
+  url       String
+  /// Was die Lehrkraft dazusagt: "ab Minute 3", "nur Teil 1"
+  note      String?
+  addedById String?
+  createdAt DateTime @default(now())
+
+  school  School @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+  addedBy User?  @relation("LinksCurated", fields: [addedById], references: [id], onDelete: SetNull)
+
+  /// Denselben Link zweimal am selben Thema braucht niemand.
+  @@unique([schoolId, subject, topicKey, url])
+  @@index([schoolId, subject, topicKey])
 }
 
 /// Fehlgeschlagene Anmeldeversuche - bremst das Durchprobieren von Passwoertern.

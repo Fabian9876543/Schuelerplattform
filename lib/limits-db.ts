@@ -21,6 +21,18 @@ export async function assessmentsToday(userId: string): Promise<number> {
   });
 }
 
+/**
+ * Erklaerungen, fuer die dieser Nutzer heute die KI bemueht hat.
+ *
+ * Gezaehlt werden nur Aufrufe mit `generated` - ein Treffer im
+ * Zwischenspeicher kostet nichts und darf niemandem das Kontingent wegnehmen.
+ */
+export async function explanationsGeneratedToday(userId: string): Promise<number> {
+  return prisma.explanationView.count({
+    where: { userId, generated: true, createdAt: { gte: startOfDay() } },
+  });
+}
+
 export async function goalsOfUser(userId: string): Promise<number> {
   return prisma.learningGoal.count({ where: { userId } });
 }

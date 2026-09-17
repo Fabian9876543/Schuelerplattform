@@ -47,6 +47,13 @@ export interface EvaluationRequest {
   daysUntilExam: number;
 }
 
+export interface ExplanationRequest {
+  subject: string;
+  /** das Thema, roh wie eingegeben */
+  topic: string;
+  gradeLevel: number;
+}
+
 // --- Ausgabe der KI ---------------------------------------------------------
 
 /**
@@ -106,6 +113,42 @@ export const evaluationResultSchema = z.object({
 
 export type EvaluationResult = z.infer<typeof evaluationResultSchema>;
 
+/**
+ * Der Aufbau einer Erklaerung.
+ *
+ * Bewusst in Teile zerlegt statt als ein Block Fliesstext: Ein Schueler, der
+ * vor einer Luecke sitzt, liest keine Textwand. Der Aufbau zwingt die KI
+ * ausserdem zu einem Beispiel und zu den typischen Fehlern - gerade daran
+ * haengt es meistens, nicht an der Definition.
+ */
+export const explanationSchema = z.object({
+  summary: z
+    .string()
+    .describe("2 bis 3 Saetze: worum es bei diesem Thema geht, in der Du-Form"),
+  steps: z
+    .array(
+      z.object({
+        title: z.string().describe("Kurze Ueberschrift des Schritts"),
+        body: z.string().describe("Der Schritt in ein bis drei Saetzen"),
+      }),
+    )
+    .min(2)
+    .max(5)
+    .describe("Der Weg durch das Thema, Schritt fuer Schritt"),
+  example: z
+    .string()
+    .describe("Ein durchgerechnetes oder durchgespieltes Beispiel, vollstaendig"),
+  pitfalls: z
+    .array(z.string())
+    .max(3)
+    .describe("Typische Fehler an genau dieser Stelle"),
+  checkQuestion: z
+    .string()
+    .describe("Eine Frage, an der man selbst merkt, ob man es verstanden hat"),
+});
+
+export type ExplanationBody = z.infer<typeof explanationSchema>;
+
 // --- Was die App zurueckbekommt --------------------------------------------
 
 export interface CoachEvaluation {
@@ -128,7 +171,13 @@ export interface CoachQuiz {
   }[];
 }
 
+export interface CoachExplanation {
+  source: "ai" | "rule";
+  body: ExplanationBody;
+}
+
 export interface LearningCoach {
   generateQuiz(request: QuizRequest): Promise<CoachQuiz>;
   evaluate(request: EvaluationRequest): Promise<CoachEvaluation>;
+  explain(request: ExplanationRequest): Promise<CoachExplanation>;
 }
