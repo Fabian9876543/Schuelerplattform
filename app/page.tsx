@@ -1,10 +1,11 @@
 import Link from "next/link";
 
 import { Card, EmptyState, LinkButton, PageTitle } from "@/components/ui";
-import { getCurrentUser } from "@/lib/auth";
+import { getCurrentUser, type SessionUser } from "@/lib/auth";
 import { prisma } from "@/lib/db";
 import { describeCountdown, formatDate } from "@/lib/format";
 import { daysBetween, progressPercent, type Mastery } from "@/lib/planning";
+import { takesPartInTutoring } from "@/lib/school";
 
 /** Ampelfarbe zum Fortschritt - die drei Stufen aus dem Entwurf. */
 function ampel(prozent: number): { punkt: string; text: string } {
@@ -17,6 +18,9 @@ export default async function HomePage() {
   const user = await getCurrentUser();
 
   if (!user) return <Welcome />;
+  // Lehrkraefte haben keine Klausuren - fuer sie ist die Startseite eine
+  // andere. Eine leere Klausurliste waere kein Zustand, sondern ein Irrtum.
+  if (!takesPartInTutoring(user.kind)) return <TeacherHome user={user} />;
 
   const [goals, openRequests] = await Promise.all([
     prisma.learningGoal.findMany({
@@ -124,6 +128,57 @@ export default async function HomePage() {
           })}
         </div>
       )}
+    </div>
+  );
+}
+
+/**
+ * Die Startseite eines Lehrerkontos. Sie zeigt, was die Plattform tut und
+ * wo es fuer diese Lehrkraft weitergeht - und sagt klar, was sie hier nicht
+ * kann und nicht sieht.
+ */
+function TeacherHome({ user }: { user: SessionUser }) {
+  return (
+    <div className="mx-auto max-w-2xl">
+      <PageTitle
+        title={`Hallo ${user.name}`}
+        subtitle={`Dein Lehrerzugang fuer ${user.schoolName}.`}
+      />
+
+      {user.isAdmin ? (
+        <Card className="mb-4">
+          <h2 className="font-medium text-slate-900">Verwaltung</h2>
+          <p className="mt-1 text-sm text-slate-600">
+            Du gibst Nachhilfe-Angebote frei, legst die Faecher fest und bestimmst, wer
+            mitverwaltet.
+          </p>
+          <div className="mt-4">
+            <LinkButton href="/schule">Zur Schulverwaltung</LinkButton>
+          </div>
+        </Card>
+      ) : (
+        <Card className="mb-4">
+          <h2 className="font-medium text-slate-900">Noch keine Verwaltungsrechte</h2>
+          <p className="mt-1 text-sm text-slate-600">
+            Dein Konto gehoert zu {user.schoolName}, verwaltet die Schule aber nicht. Wer das
+            bereits tut, kann dir die Rechte geben.
+          </p>
+        </Card>
+      )}
+
+      <Card>
+        <h2 className="font-medium text-slate-900">Was hier passiert</h2>
+        <p className="mt-1 text-sm text-slate-600">
+          Schuelerinnen und Schueler tragen ihre Klausuren ein, machen einen kurzen Selbsttest
+          und bekommen daraus einen Lernplan. Wo Luecken bleiben, suchen sie sich Nachhilfe bei
+          Mitschuelern derselben Schule.
+        </p>
+        <p className="mt-3 text-sm text-slate-500">
+          Dein Zugang nimmt daran nicht teil: keine eigenen Klausuren, keine Angebote, keine
+          Anfragen. Und du siehst weder Nachrichten noch Bewertungen oder Selbsttests - auch
+          nicht mit Verwaltungsrechten.
+        </p>
+      </Card>
     </div>
   );
 }

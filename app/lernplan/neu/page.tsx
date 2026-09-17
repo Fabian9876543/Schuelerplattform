@@ -1,9 +1,9 @@
 import { NewGoalForm } from "@/app/lernplan/neu/new-goal-form";
 import { Card, PageTitle } from "@/components/ui";
-import { requireUser } from "@/lib/auth";
+import { requireStudent } from "@/lib/auth";
 
 export default async function NewGoalPage() {
-  await requireUser();
+  await requireStudent();
 
   return (
     <div className="mx-auto max-w-2xl">

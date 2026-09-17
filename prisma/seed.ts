@@ -81,13 +81,23 @@ async function main() {
   // Das Goethe-Gymnasium gibt Angebote frei, bevor sie sichtbar werden, die
   // Humboldt-Schule nicht. Dafuer fuehrt Humboldt eine Faecherliste. So sind
   // beide Moeglichkeiten vorfuehrbar.
+  //
+  // Die Lehrercodes sind hier absichtlich lesbar. In einer echten Schule
+  // erzeugt die Migration einen zufaelligen Code - hier soll man ihn
+  // abtippen koennen.
   const goethe = await prisma.school.create({
-    data: { name: "Goethe-Gymnasium", joinCode: "GOETHE", requiresApproval: true },
+    data: {
+      name: "Goethe-Gymnasium",
+      joinCode: "GOETHE",
+      teacherJoinCode: "GOETHE-LEHR",
+      requiresApproval: true,
+    },
   });
   const humboldt = await prisma.school.create({
     data: {
       name: "Humboldt-Schule",
       joinCode: "HUMBOLDT",
+      teacherJoinCode: "HUMBOLDT-LEHR",
       subjects: {
         create: [{ subject: "Mathematik" }, { subject: "Physik" }, { subject: "Englisch" }],
       },
@@ -97,15 +107,34 @@ async function main() {
   const people = [
     { email: "lena@schule.de", name: "Lena Bergmann", gradeLevel: 11, schoolId: goethe.id },
     { email: "jonas@schule.de", name: "Jonas Weber", gradeLevel: 12, schoolId: goethe.id },
-    // Verwaltet ihre Schule - der erste Verwalter kommt aus der Datenbank,
-    // nicht aus einem Formular (siehe README).
-    { email: "mira@schule.de", name: "Mira Sahin", gradeLevel: 13, schoolId: goethe.id, role: "admin" as const },
+    // Schuelerin und Verwalterin zugleich - beides geht nebeneinander.
+    { email: "mira@schule.de", name: "Mira Sahin", gradeLevel: 13, schoolId: goethe.id, isAdmin: true },
     { email: "tom@schule.de", name: "Tom Krueger", gradeLevel: 11, schoolId: goethe.id },
     { email: "aylin@schule.de", name: "Aylin Kaya", gradeLevel: 12, schoolId: goethe.id },
     { email: "paul@schule.de", name: "Paul Hoffmann", gradeLevel: 10, schoolId: goethe.id },
     // Andere Schule - taucht bei den Konten oben nie in der Suche auf
     { email: "nils@humboldt.de", name: "Nils Brandt", gradeLevel: 12, schoolId: humboldt.id },
-    { email: "sara@humboldt.de", name: "Sara Lindqvist", gradeLevel: 13, schoolId: humboldt.id, role: "admin" as const },
+    { email: "sara@humboldt.de", name: "Sara Lindqvist", gradeLevel: 13, schoolId: humboldt.id, isAdmin: true },
+
+    // Lehrkraefte: kein Klassenstufe, keine Nachhilfe. Frau Baumann verwaltet
+    // das Goethe-Gymnasium, Herr Olsen hat an der Humboldt-Schule bewusst
+    // keine Verwaltungsrechte - Lehrkraft sein und verwalten duerfen sind
+    // zwei verschiedene Dinge.
+    {
+      email: "baumann@schule.de",
+      name: "Frau Baumann",
+      gradeLevel: null,
+      schoolId: goethe.id,
+      kind: "teacher" as const,
+      isAdmin: true,
+    },
+    {
+      email: "olsen@humboldt.de",
+      name: "Herr Olsen",
+      gradeLevel: null,
+      schoolId: humboldt.id,
+      kind: "teacher" as const,
+    },
   ];
 
   const users: Record<string, string> = {};
@@ -480,7 +509,8 @@ async function main() {
   console.log("3 angenommene Anfragen, davon eine mit Nachrichtenverlauf,");
   console.log("3 Bewertungen (Mira 5 und 4, Tom 2, Jonas noch keine),");
   console.log("2 Termine: einer zugesagt, einer wartet auf Antwort.");
-  console.log("Verwaltung: Mira (Goethe, mit Freigabepflicht), Sara (Humboldt, mit Faecherliste).");
+  console.log("Verwaltung: Frau Baumann und Mira (Goethe), Sara (Humboldt).");
+  console.log("Lehrercodes: GOETHE-LEHR und HUMBOLDT-LEHR.");
   console.log(`Passwort fuer alle Konten: ${PASSWORD}`);
 }
 

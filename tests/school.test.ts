@@ -5,8 +5,11 @@ import {
   allowedSubjects,
   canChangeRole,
   canOfferSubject,
+  describeGrade,
   isAdmin,
+  kindForJoinCode,
   offerVisible,
+  takesPartInTutoring,
 } from "@/lib/school";
 
 describe("allowedSubjects", () => {
@@ -71,8 +74,54 @@ describe("canChangeRole", () => {
 });
 
 describe("isAdmin", () => {
-  it("unterscheidet die Rollen", () => {
-    expect(isAdmin("admin")).toBe(true);
-    expect(isAdmin("student")).toBe(false);
+  it("haengt an den Rechten, nicht an der Kontoart", () => {
+    // Eine Schuelerin darf verwalten, eine Lehrkraft muss nicht.
+    expect(isAdmin({ isAdmin: true })).toBe(true);
+    expect(isAdmin({ isAdmin: false })).toBe(false);
+  });
+});
+
+describe("takesPartInTutoring", () => {
+  it("laesst Lehrkraefte aussen vor", () => {
+    // Die Plattform vermittelt Nachhilfe unter Mitschuelern. Eine Lehrkraft
+    // in der Trefferliste waere etwas anderes.
+    expect(takesPartInTutoring("student")).toBe(true);
+    expect(takesPartInTutoring("teacher")).toBe(false);
+  });
+});
+
+describe("describeGrade", () => {
+  it("nennt die Klasse oder die Lehrkraft", () => {
+    expect(describeGrade({ kind: "student", gradeLevel: 11 })).toBe("Klasse 11");
+    expect(describeGrade({ kind: "teacher", gradeLevel: null })).toBe("Lehrkraft");
+  });
+
+  it("faellt bei fehlender Klasse nicht auf 'Klasse null' zurueck", () => {
+    expect(describeGrade({ kind: "student", gradeLevel: null })).toBe("Lehrkraft");
+  });
+});
+
+describe("kindForJoinCode", () => {
+  const schule = { joinCode: "GOETHE", teacherJoinCode: "GOETHE-LEHR" };
+
+  it("unterscheidet die beiden Codes", () => {
+    expect(kindForJoinCode(schule, "GOETHE")).toBe("student");
+    expect(kindForJoinCode(schule, "GOETHE-LEHR")).toBe("teacher");
+  });
+
+  it("nimmt es mit Gross- und Kleinschreibung und Leerzeichen nicht genau", () => {
+    expect(kindForJoinCode(schule, "  goethe-lehr ")).toBe("teacher");
+  });
+
+  it("weist unbekannte Codes ab", () => {
+    expect(kindForJoinCode(schule, "HUMBOLDT")).toBeNull();
+    expect(kindForJoinCode(schule, "GOETHE-LEHRER")).toBeNull();
+  });
+
+  it("laesst eine leere Eingabe nie durchgehen", () => {
+    // Sonst kaeme man mit einem leeren Feld in eine Schule, deren Code
+    // versehentlich leer ist.
+    expect(kindForJoinCode(schule, "")).toBeNull();
+    expect(kindForJoinCode({ joinCode: "", teacherJoinCode: "" }, "")).toBeNull();
   });
 });

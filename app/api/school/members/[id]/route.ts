@@ -1,14 +1,18 @@
 import { z } from "zod";
 
 import { fail, fromZodError, ok, withUser } from "@/lib/api";
-import { userRoleSchema } from "@/lib/constants";
 import { prisma } from "@/lib/db";
 import { canChangeRole } from "@/lib/school";
 import { denyIfNotAdmin } from "@/lib/school-api";
 
-const schema = z.object({ role: userRoleSchema });
+const schema = z.object({ isAdmin: z.boolean() });
 
-/** Jemanden aus der eigenen Schule zum Verwalter machen - oder wieder nicht. */
+/**
+ * Jemanden aus der eigenen Schule zum Verwalter machen - oder wieder nicht.
+ *
+ * Hier geht es nur um Rechte. Ob jemand Schueler oder Lehrkraft ist, steht
+ * beim Beitritt fest und laesst sich hier nicht umstellen.
+ */
 export async function PATCH(request: Request, context: { params: Promise<{ id: string }> }) {
   return withUser(async (user) => {
     const verboten = denyIfNotAdmin(user);
@@ -33,7 +37,7 @@ export async function PATCH(request: Request, context: { params: Promise<{ id: s
       return fail("Dieses Konto gibt es nicht.", 404);
     }
 
-    await prisma.user.update({ where: { id }, data: { role: parsed.data.role } });
-    return ok({ id, role: parsed.data.role, name: ziel.name });
+    await prisma.user.update({ where: { id }, data: { isAdmin: parsed.data.isAdmin } });
+    return ok({ id, isAdmin: parsed.data.isAdmin, name: ziel.name });
   });
 }

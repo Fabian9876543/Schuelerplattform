@@ -3,6 +3,7 @@ import { z } from "zod";
 import { fail, fromZodError, ok, withUser } from "@/lib/api";
 import { prisma } from "@/lib/db";
 import { LIMITS } from "@/lib/limits";
+import { studentOrDeny } from "@/lib/school-api";
 
 const schema = z.object({
   tutorOfferId: z.string().min(1),
@@ -36,6 +37,9 @@ export async function GET() {
 
 export async function POST(request: Request) {
   return withUser(async (user) => {
+    const { deny } = studentOrDeny(user);
+    if (deny) return deny;
+
     const parsed = schema.safeParse(await request.json());
     if (!parsed.success) return fromZodError(parsed.error);
 

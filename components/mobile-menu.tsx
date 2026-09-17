@@ -6,6 +6,7 @@ import { useEffect, useRef } from "react";
 
 import { sichtbareNavItems } from "@/components/nav-items";
 import type { SessionUser } from "@/lib/auth";
+import { describeGrade } from "@/lib/school";
 
 /**
  * Das ausklappbare Menü für schmale Displays.
@@ -62,7 +63,7 @@ export function MobileMenu({ user, unread = 0 }: { user: SessionUser; unread?: n
 
           <div className="mt-2 flex items-center justify-between border-t border-slate-200 pt-3 pb-1 text-sm">
             <span className="text-slate-500">
-              {user.name} &middot; Klasse {user.gradeLevel}
+              {user.name} &middot; {describeGrade(user)}
               <br />
               {user.schoolName}
             </span>

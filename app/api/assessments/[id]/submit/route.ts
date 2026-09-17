@@ -3,6 +3,7 @@ import { z } from "zod";
 import { getCoach, type AnsweredQuestion } from "@/lib/ai";
 import { fail, fromZodError, ok, withUser } from "@/lib/api";
 import { prisma } from "@/lib/db";
+import { studentOrDeny } from "@/lib/school-api";
 import { LIMITS } from "@/lib/limits";
 import { buildStudyPlan, daysBetween } from "@/lib/planning";
 import { parseOptions } from "@/lib/questions";
@@ -38,6 +39,9 @@ const schema = z.object({
  */
 export async function POST(request: Request, context: { params: Promise<{ id: string }> }) {
   return withUser(async (user) => {
+    const { deny, student } = studentOrDeny(user);
+    if (deny) return deny;
+
     const { id } = await context.params;
     const parsed = schema.safeParse(await request.json());
     if (!parsed.success) return fromZodError(parsed.error);
@@ -115,7 +119,7 @@ export async function POST(request: Request, context: { params: Promise<{ id: st
 
     const result = await getCoach().evaluate({
       subject: goal.subject,
-      gradeLevel: user.gradeLevel,
+      gradeLevel: student.gradeLevel,
       topics: goal.topics.map((topic) => ({ id: topic.id, name: topic.name })),
       questions,
       selfRatings: parsed.data.selfRatings,

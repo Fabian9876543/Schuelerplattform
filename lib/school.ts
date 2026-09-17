@@ -1,13 +1,48 @@
-import { SUBJECTS, type Subject } from "@/lib/constants";
-import type { UserRole } from "@/lib/constants";
+import { SUBJECTS, type Subject, type UserKind } from "@/lib/constants";
 
 /**
  * Die Regeln der Schulverwaltung - ohne Datenbank, damit sie sich ohne
  * laufenden Server testen lassen. Die Abfragen stehen in lib/school-db.ts.
  */
 
-export function isAdmin(role: UserRole): boolean {
-  return role === "admin";
+export function isAdmin(user: { isAdmin: boolean }): boolean {
+  return user.isAdmin;
+}
+
+/**
+ * Nimmt dieses Konto an der Nachhilfe teil?
+ *
+ * Lehrkraefte nicht: Die Plattform vermittelt Nachhilfe **unter Mitschuelern**.
+ * Eine Lehrkraft, die als Nachhilfegeber in der Trefferliste auftaucht, waere
+ * etwas anderes - und eine, die ihre Schueler um Hilfe bittet, erst recht.
+ * Ein Lehrerkonto dient der Verwaltung, nicht dem Markt.
+ */
+export function takesPartInTutoring(kind: UserKind): boolean {
+  return kind === "student";
+}
+
+/** "Klasse 11" oder "Lehrkraft" - eine Stelle fuer beide Faelle. */
+export function describeGrade(user: { kind: UserKind; gradeLevel: number | null }): string {
+  return user.kind === "teacher" || user.gradeLevel === null
+    ? "Lehrkraft"
+    : `Klasse ${user.gradeLevel}`;
+}
+
+/**
+ * Welche Art Konto entsteht mit diesem Beitrittscode?
+ *
+ * Jede Schule hat zwei: einen fuer Schueler und einen fuer Lehrkraefte. Der
+ * Code entscheidet, nicht ein Haken im Formular - sonst koennte sich jeder
+ * mit dem Schuelercode zur Lehrkraft erklaeren.
+ */
+export function kindForJoinCode(
+  school: { joinCode: string; teacherJoinCode: string },
+  code: string,
+): UserKind | null {
+  const eingabe = code.trim().toUpperCase();
+  if (eingabe && eingabe === school.joinCode.toUpperCase()) return "student";
+  if (eingabe && eingabe === school.teacherJoinCode.toUpperCase()) return "teacher";
+  return null;
 }
 
 /**

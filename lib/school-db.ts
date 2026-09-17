@@ -23,7 +23,13 @@ export async function schoolOverview(schoolId: string) {
   const [school, members, offers, faecher, zahlen] = await Promise.all([
     prisma.school.findUniqueOrThrow({
       where: { id: schoolId },
-      select: { id: true, name: true, joinCode: true, requiresApproval: true },
+      select: {
+        id: true,
+        name: true,
+        joinCode: true,
+        teacherJoinCode: true,
+        requiresApproval: true,
+      },
     }),
     prisma.user.findMany({
       where: { schoolId },
@@ -32,11 +38,13 @@ export async function schoolOverview(schoolId: string) {
         name: true,
         email: true,
         gradeLevel: true,
-        role: true,
+        kind: true,
+        isAdmin: true,
         createdAt: true,
         _count: { select: { tutorOffers: true } },
       },
-      orderBy: [{ role: "asc" }, { name: "asc" }],
+      // Verwaltung zuerst, danach alphabetisch.
+      orderBy: [{ isAdmin: "desc" }, { name: "asc" }],
     }),
     prisma.tutorOffer.findMany({
       where: { user: { schoolId } },
@@ -48,7 +56,7 @@ export async function schoolOverview(schoolId: string) {
         active: true,
         approved: true,
         approvedAt: true,
-        user: { select: { id: true, name: true, gradeLevel: true } },
+        user: { select: { id: true, name: true, gradeLevel: true, kind: true } },
         topics: { select: { id: true, name: true } },
         approvedBy: { select: { name: true } },
       },

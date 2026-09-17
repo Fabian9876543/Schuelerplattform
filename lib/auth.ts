@@ -4,9 +4,9 @@ import bcrypt from "bcryptjs";
 import { cookies } from "next/headers";
 import { notFound, redirect } from "next/navigation";
 
-import type { UserRole } from "@/lib/constants";
+import type { UserKind } from "@/lib/constants";
 import { prisma } from "@/lib/db";
-import { isAdmin } from "@/lib/school";
+import { isAdmin, takesPartInTutoring } from "@/lib/school";
 
 const COOKIE_NAME = "schuelerplattform_session";
 const SESSION_DAYS = 30;
@@ -15,11 +15,13 @@ export type SessionUser = {
   id: string;
   email: string;
   name: string;
-  gradeLevel: number;
+  /// Lehrkraefte haben keine Klassenstufe.
+  gradeLevel: number | null;
   /// An welche Schule der Zugang gebunden ist - Suche und Anfragen enden hier.
   schoolId: string;
   schoolName: string;
-  role: UserRole;
+  kind: UserKind;
+  isAdmin: boolean;
   /// Verlangt diese Schule eine Freigabe fuer Nachhilfe-Angebote?
   schoolRequiresApproval: boolean;
 };
@@ -83,9 +85,21 @@ export async function getCurrentUser(): Promise<SessionUser | null> {
     gradeLevel: session.user.gradeLevel,
     schoolId: session.user.schoolId,
     schoolName: session.user.school.name,
-    role: session.user.role,
+    kind: session.user.kind,
+    isAdmin: session.user.isAdmin,
     schoolRequiresApproval: session.user.school.requiresApproval,
   };
+}
+
+/**
+ * Fuer Seiten, die es nur fuer Schuelerkonten gibt (Klausuren, Lernplan,
+ * Nachhilfe). Lehrkraefte bekommen 404 - die Seiten haetten fuer sie keinen
+ * Inhalt, und eine halbe Ansicht waere verwirrender als keine.
+ */
+export async function requireStudent(): Promise<SessionUser & { gradeLevel: number }> {
+  const user = await requireUser();
+  if (!takesPartInTutoring(user.kind) || user.gradeLevel === null) notFound();
+  return { ...user, gradeLevel: user.gradeLevel };
 }
 
 /** Fuer Seiten: leitet zum Login um, wenn niemand angemeldet ist. */
@@ -102,6 +116,6 @@ export async function requireUser(): Promise<SessionUser> {
  */
 export async function requireAdmin(): Promise<SessionUser> {
   const user = await requireUser();
-  if (!isAdmin(user.role)) notFound();
+  if (!isAdmin(user)) notFound();
   return user;
 }

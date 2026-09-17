@@ -2,12 +2,12 @@ import { notFound, redirect } from "next/navigation";
 
 import { AssessmentForm } from "@/app/lernplan/[id]/selbsttest/assessment-form";
 import { PageTitle } from "@/components/ui";
-import { requireUser } from "@/lib/auth";
+import { requireStudent } from "@/lib/auth";
 import { prisma } from "@/lib/db";
 import { parseOptions } from "@/lib/questions";
 
 export default async function AssessmentPage({ params }: { params: Promise<{ id: string }> }) {
-  const user = await requireUser();
+  const user = await requireStudent();
   const { id } = await params;
 
   const goal = await prisma.learningGoal.findUnique({

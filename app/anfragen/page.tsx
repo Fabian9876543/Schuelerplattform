@@ -5,7 +5,7 @@ import { StatusBadge } from "@/app/anfragen/status-badge";
 import { Stars } from "@/components/stars";
 import { formatAppointment } from "@/lib/appointments";
 import { Card, EmptyState, PageTitle } from "@/components/ui";
-import { requireUser } from "@/lib/auth";
+import { requireStudent } from "@/lib/auth";
 import { prisma } from "@/lib/db";
 import { formatDate } from "@/lib/format";
 import { describeUnread } from "@/lib/messages";
@@ -80,7 +80,7 @@ const naechsterTermin = {
 } as const;
 
 export default async function RequestsPage() {
-  const user = await requireUser();
+  const user = await requireStudent();
 
   const [incoming, outgoing, ungelesen] = await Promise.all([
     prisma.tutoringRequest.findMany({

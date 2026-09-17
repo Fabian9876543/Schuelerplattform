@@ -43,11 +43,16 @@ enum MasteryLevel {
   strong
 }
 
-/// Was ein Konto in seiner Schule darf.
-enum UserRole {
+/// Was fuer ein Konto das ist.
+///
+/// Bewusst getrennt von der Frage, wer verwalten darf (`User.isAdmin`): Das
+/// sind zwei verschiedene Dinge. Eine Lehrkraft muss nichts verwalten, und
+/// eine Schuelerin darf es duerfen. Steckte beides in einer Spalte, liesse
+/// sich von einem Verwalter nicht mehr sagen, ob er eine Klasse hat.
+enum UserKind {
   student
-  /// verwaltet die eigene Schule: Freigaben, Faecher, weitere Verwalter
-  admin
+  /// keine Klassenstufe; nimmt an der Nachhilfe nicht teil
+  teacher
 }
 
 /// Stand eines vereinbarten Termins.
@@ -72,8 +77,12 @@ enum RequestStatus {
 model School {
   id        String   @id @default(cuid())
   name      String
-  /// Code, den die Schule ausgibt; damit meldet man sich in ihrem Bereich an
+  /// Code, den die Schule an ihre Schueler ausgibt
   joinCode  String   @unique
+  /// Eigener Code fuer Lehrkraefte. Getrennt, weil damit ein Konto ohne
+  /// Klassenstufe entsteht - wer den Schuelercode hat, soll sich nicht
+  /// selbst zur Lehrkraft erklaeren koennen.
+  teacherJoinCode String @unique
   /// Muessen Nachhilfe-Angebote erst freigegeben werden, bevor sie in der
   /// Suche auftauchen? Voreinstellung: nein - eine Schule, die diese Huerde
   /// nicht will, soll sie nicht aufgezwungen bekommen.
@@ -106,9 +115,14 @@ model User {
   email        String   @unique
   passwordHash String
   name         String
-  gradeLevel   Int
+  /// Nur Schuelerkonten haben eine Klassenstufe; bei Lehrkraeften ist sie
+  /// leer. Die Datenbank haelt beides auseinander (CHECK in der Migration).
+  gradeLevel   Int?
   schoolId     String
-  role         UserRole @default(student)
+  kind         UserKind @default(student)
+  /// Darf die eigene Schule verwalten. Unabhaengig davon, ob Schueler oder
+  /// Lehrkraft - beides kommt vor.
+  isAdmin      Boolean  @default(false)
   createdAt    DateTime @default(now())
 
   school            School            @relation(fields: [schoolId], references: [id])

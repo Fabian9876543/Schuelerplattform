@@ -1,7 +1,7 @@
 import { RequestDialog } from "@/app/nachhilfe/request-dialog";
 import { Stars } from "@/components/stars";
 import { Card, EmptyState, PageTitle } from "@/components/ui";
-import { requireUser } from "@/lib/auth";
+import { requireStudent } from "@/lib/auth";
 import { SUBJECTS } from "@/lib/constants";
 import { allowedSubjects } from "@/lib/school";
 import { schoolSubjects } from "@/lib/school-db";
@@ -13,7 +13,7 @@ export default async function TutorSearchPage({
 }: {
   searchParams: Promise<{ subject?: string; topic?: string; deficit?: string }>;
 }) {
-  const user = await requireUser();
+  const user = await requireStudent();
   const params = await searchParams;
 
   // Zur Auswahl steht, was die Schule fuehrt - ohne eigene Liste alle Faecher.

@@ -10,6 +10,7 @@ import {
 import { prisma } from "@/lib/db";
 import { LIMITS } from "@/lib/limits";
 import { canOfferSubject, resetsApproval } from "@/lib/school";
+import { studentOrDeny } from "@/lib/school-api";
 import { schoolSubjects } from "@/lib/school-db";
 
 const schema = z.object({
@@ -38,6 +39,9 @@ export async function GET() {
 /** Legt ein Nachhilfe-Angebot an. Pro Fach gibt es hoechstens eines. */
 export async function POST(request: Request) {
   return withUser(async (user) => {
+    const { deny } = studentOrDeny(user);
+    if (deny) return deny;
+
     const parsed = schema.safeParse(await request.json());
     if (!parsed.success) return fromZodError(parsed.error);
 

@@ -51,6 +51,8 @@ Alle Beispielkonten haben das Passwort `geheim123`:
 | `paul@schule.de` | Goethe-Gymnasium | hat eine Anfrage an Jonas gestellt; sein Informatik-Angebot wartet auf die Freigabe der Schule |
 | `nils@humboldt.de` | Humboldt-Schule | bietet dieselben Mathe-Themen an – für das Goethe-Gymnasium unsichtbar |
 | `sara@humboldt.de` | Humboldt-Schule | **verwaltet die Humboldt-Schule**, bietet ebenfalls Mathe an |
+| `baumann@schule.de` | Goethe-Gymnasium | **Lehrkraft mit Verwaltungsrechten** – keine Klassenstufe, keine Nachhilfe |
+| `olsen@humboldt.de` | Humboldt-Schule | **Lehrkraft ohne Verwaltungsrechte** – zeigt, dass beides getrennt ist |
 
 Melde dich als Lena an und suche Nachhilfe in Mathematik: Nils und Sara tauchen
 nicht auf, obwohl sie genau diese Themen anbieten. Als Nils ist es umgekehrt.
@@ -305,8 +307,21 @@ passiert beim Aufbau der Seite und hängt nicht am Nachladen.
 
 ## Schulverwaltung
 
-Jedes Konto hat eine Rolle (`student` oder `admin`). Verwalter sehen unter
-`/schule` ihre **eigene** Schule und regeln dort drei Dinge:
+Jedes Konto trägt zwei unabhängige Angaben:
+
+| Frage | Feld | Werte |
+|---|---|---|
+| Was bin ich? | `User.kind` | `student` (mit Klassenstufe) oder `teacher` (ohne) |
+| Was darf ich? | `User.isAdmin` | verwaltet die eigene Schule, ja oder nein |
+
+**Warum zwei Spalten und nicht eine Rolle?** Weil beides unabhängig vorkommt:
+Im Seed verwaltet eine Lehrkraft (Frau Baumann) *und* eine Schülerin (Mira)
+dieselbe Schule, während eine andere Lehrkraft (Herr Olsen) gar nichts
+verwaltet. Steckte beides in einer Spalte, ließe sich von einem Verwalter nicht
+mehr sagen, ob er eine Klasse hat – und genau das braucht die Nachhilfesuche.
+
+Verwalter sehen unter `/schule` ihre **eigene** Schule und regeln dort drei
+Dinge:
 
 1. **Freigabe von Nachhilfe-Angeboten.** Ist die Freigabepflicht eingeschaltet,
    taucht ein Angebot erst in der Suche auf, wenn die Schule es freigegeben hat.
@@ -337,9 +352,25 @@ Angebots-ID der Humboldt-Schule direkt an die API schickt, bekommt 404 – wie
 bei der Nachhilfesuche ist die gefilterte Anzeige nicht der Riegel, sondern die
 Prüfung in der Route.
 
-**Noch offen:** Verwalter sind derzeit Schülerkonten mit Klassenstufe. Ein
-Lehrerzugang bräuchte ein Konto ohne Klassenstufe – das berührt Suche und
-Matching und ist deshalb ein eigener Schritt.
+### Lehrkräfte
+
+Ein Lehrerkonto hat **keine Klassenstufe** und nimmt an der Nachhilfe **nicht
+teil**: keine eigenen Klausuren, keine Angebote, keine Anfragen. Die Plattform
+vermittelt Nachhilfe *unter Mitschülern*; eine Lehrkraft in der Trefferliste
+wäre etwas anderes, und eine, die ihre Schüler um Hilfe bittet, erst recht.
+Die Startseite eines Lehrerkontos sagt das auch so.
+
+Angelegt wird es über einen **eigenen Beitrittscode** je Schule
+(`School.teacherJoinCode`). Der Code entscheidet, nicht ein Haken im Formular –
+sonst könnte sich jeder mit dem Schülercode zur Lehrkraft erklären. Der Haken
+im Registrierungsformular blendet nur das Klassenfeld aus; was daraus wird,
+prüft der Server. Im Seed sind die Lehrercodes `GOETHE-LEHR` und
+`HUMBOLDT-LEHR`; die Migration erzeugt für bestehende Schulen einen zufälligen,
+den die Verwaltung auf ihrer Seite sieht.
+
+Die Datenbank hält beides auseinander: Ein Schülerkonto ohne Klasse und eine
+Lehrkraft mit Klasse werden von einem `CHECK` abgewiesen, egal über welchen Weg
+sie hereinkämen.
 
 ## Kalender
 
@@ -495,10 +526,10 @@ Schreibzugriffe laufen über Route Handler mit Zod-Validierung.
 ## Tests
 
 ```bash
-npm test         # 108 Tests: Terminverteilung, Matching, Fallback, KI-Schemas,
+npm test         # 115 Tests: Terminverteilung, Matching, Fallback, KI-Schemas,
                  #             Umplanung, Grenzwerte, Zugang zu Verläufen,
                  #             Gewicht der Bewertungen, Kalenderrechnung,
-                 #             Terminregeln, Rollen und Fächerlisten
+                 #             Terminregeln, Rollen, Fächerlisten, Beitrittscodes
 npm run build    # Typprüfung und Produktionsbuild
 ```
 
@@ -515,7 +546,7 @@ Die Tests brauchen keinen API-Schlüssel.
   durch ist.
 - **Status- und Typfelder** sind echte `enum`-Typen in der Datenbank
   (`AssessmentStatus`, `QuestionKind`, `EvaluationSource`, `RequestStatus`,
-  `MasteryLevel`, `AppointmentStatus`, `UserRole`).
+  `MasteryLevel`, `AppointmentStatus`, `UserKind`).
   Die Datenbank lässt keinen ungültigen Wert zu, Prisma erzeugt daraus die
   TypeScript-Typen, und `lib/constants.ts` leitet die Zod-Schemas davon ab –
   eine Quelle statt zwei.
@@ -528,6 +559,6 @@ Die Tests brauchen keinen API-Schlüssel.
 ## Was als Nächstes sinnvoll wäre
 
 - Rückmeldung nach der Klausur, um die Treffsicherheit der Auswertung zu prüfen
-- Lehrerzugänge: ein Konto ohne Klassenstufe, damit nicht Schüler die Schule
-  verwalten müssen
 - Rückmeldung an die Schule, wenn jemand ein Angebot meldet
+- Klassen und Kurse, damit die Schule nicht nur Fächer, sondern auch Gruppen
+  abbilden kann

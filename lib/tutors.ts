@@ -22,7 +22,9 @@ export async function searchTutors(options: {
       subject: options.subject,
       active: true,
       NOT: { userId: options.excludeUserId },
-      user: { schoolId: options.schoolId },
+      // Lehrkraefte koennen keine Angebote anlegen; der Filter haelt die
+      // Trefferliste auch dann sauber, wenn doch einmal eines entstuende.
+      user: { schoolId: options.schoolId, kind: "student" },
       // Die Freigabe wirkt nur, solange die Schule sie verlangt. Schaltet sie
       // die Pflicht ab, sind alle Angebote wieder da - ohne dass jemand
       // hunderte Haken setzen muss.

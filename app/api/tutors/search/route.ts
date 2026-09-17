@@ -1,4 +1,5 @@
 import { ok, withUser } from "@/lib/api";
+import { studentOrDeny } from "@/lib/school-api";
 import { searchTutors } from "@/lib/tutors";
 
 /**
@@ -11,12 +12,15 @@ export async function GET(request: Request) {
     const subject = url.searchParams.get("subject");
     if (!subject) return ok({ matches: [] });
 
+    const { deny, student } = studentOrDeny(user);
+    if (deny) return deny;
+
     const grade = Number(url.searchParams.get("grade"));
 
     const matches = await searchTutors({
       subject,
       topic: url.searchParams.get("topic") ?? undefined,
-      gradeLevel: Number.isFinite(grade) && grade > 0 ? grade : user.gradeLevel,
+      gradeLevel: Number.isFinite(grade) && grade > 0 ? grade : student.gradeLevel,
       excludeUserId: user.id,
       schoolId: user.schoolId,
       requiresApproval: user.schoolRequiresApproval,

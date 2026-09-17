@@ -4,7 +4,7 @@ import { useRouter } from "next/navigation";
 import { useState } from "react";
 
 import { ErrorNote } from "@/components/ui";
-import { SUBJECTS, type Subject, type UserRole } from "@/lib/constants";
+import { SUBJECTS, type Subject } from "@/lib/constants";
 
 /**
  * Die Schalter der Verwaltungsseite.
@@ -98,12 +98,12 @@ export function OfferApproval({ offerId, approved }: { offerId: string; approved
 
 export function MemberRole({
   userId,
-  role,
+  isAdmin,
   name,
   self,
 }: {
   userId: string;
-  role: UserRole;
+  isAdmin: boolean;
   name: string;
   self: boolean;
 }) {
@@ -124,18 +124,18 @@ export function MemberRole({
         onClick={() =>
           schicken(
             `/api/school/members/${userId}`,
-            { role: role === "admin" ? "student" : "admin" },
+            { isAdmin: !isAdmin },
             userId,
           )
         }
         className="rounded-md border border-slate-300 px-3 py-1.5 text-sm text-slate-700 hover:bg-slate-50 disabled:opacity-60"
         title={
-          role === "admin"
+          isAdmin
             ? `${name} verwaltet die Schule nicht mehr`
             : `${name} darf die Schule mitverwalten`
         }
       >
-        {role === "admin" ? "Verwaltung entziehen" : "Zum Verwalter machen"}
+        {isAdmin ? "Verwaltung entziehen" : "Zum Verwalter machen"}
       </button>
     </div>
   );

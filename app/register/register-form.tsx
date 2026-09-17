@@ -15,6 +15,10 @@ export function RegisterForm() {
   const router = useRouter();
   const [error, setError] = useState<string | null>(null);
   const [pending, setPending] = useState(false);
+  // Blendet nur das Klassenfeld aus. Ob wirklich ein Lehrerkonto entsteht,
+  // entscheidet der Beitrittscode auf dem Server - sonst koennte sich jeder
+  // mit dem Schuelercode zur Lehrkraft erklaeren.
+  const [lehrkraft, setLehrkraft] = useState(false);
 
   async function onSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -68,15 +72,33 @@ export function RegisterForm() {
         <input name="email" type="email" required autoComplete="email" className={inputClass} />
       </Field>
 
-      <Field label="Klassenstufe">
-        <select name="gradeLevel" required defaultValue="10" className={inputClass}>
-          {GRADES.map((grade) => (
-            <option key={grade} value={grade}>
-              Klasse {grade}
-            </option>
-          ))}
-        </select>
-      </Field>
+      <label className="flex items-start gap-3">
+        <input
+          type="checkbox"
+          checked={lehrkraft}
+          onChange={(event) => setLehrkraft(event.target.checked)}
+          className="mt-1 h-4 w-4 rounded border-slate-300"
+        />
+        <span>
+          <span className="block text-sm font-medium text-slate-700">Ich bin eine Lehrkraft</span>
+          <span className="block text-xs text-slate-500">
+            Dafuer braucht es den Lehrercode der Schule. Ein Lehrerkonto hat keine Klassenstufe
+            und nimmt an der Nachhilfe nicht teil.
+          </span>
+        </span>
+      </label>
+
+      {lehrkraft ? null : (
+        <Field label="Klassenstufe">
+          <select name="gradeLevel" required defaultValue="10" className={inputClass}>
+            {GRADES.map((grade) => (
+              <option key={grade} value={grade}>
+                Klasse {grade}
+              </option>
+            ))}
+          </select>
+        </Field>
+      )}
 
       <Field label="Passwort" hint="Mindestens 8 Zeichen.">
         <input

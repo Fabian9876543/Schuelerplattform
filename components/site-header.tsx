@@ -3,6 +3,7 @@ import Link from "next/link";
 import { MobileMenu } from "@/components/mobile-menu";
 import { sichtbareNavItems } from "@/components/nav-items";
 import type { SessionUser } from "@/lib/auth";
+import { describeGrade } from "@/lib/school";
 
 /** Die Zahl ungelesener Nachrichten neben dem Navigationspunkt. */
 function UnreadBadge({ count }: { count: number }) {
@@ -41,7 +42,7 @@ export function SiteHeader({ user, unread = 0 }: { user: SessionUser | null; unr
 
             <div className="ml-auto hidden items-center gap-3 text-sm md:flex">
               <span className="text-slate-500">
-                {user.name} &middot; Klasse {user.gradeLevel} &middot; {user.schoolName}
+                {user.name} &middot; {describeGrade(user)} &middot; {user.schoolName}
               </span>
               <form action="/api/auth/logout" method="post">
                 <button type="submit" className="text-slate-600 underline hover:text-slate-900">

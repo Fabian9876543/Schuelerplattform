@@ -1,7 +1,7 @@
 import { OfferForm } from "@/app/nachhilfe/anbieten/offer-form";
 import { Stars } from "@/components/stars";
 import { Card, PageTitle } from "@/components/ui";
-import { requireUser } from "@/lib/auth";
+import { requireStudent } from "@/lib/auth";
 import { prisma } from "@/lib/db";
 import { formatDate } from "@/lib/format";
 import { ratingSummaries, ratingsForOwnOffers } from "@/lib/ratings-db";
@@ -9,7 +9,7 @@ import { allowedSubjects } from "@/lib/school";
 import { schoolSubjects } from "@/lib/school-db";
 
 export default async function OfferPage() {
-  const user = await requireUser();
+  const user = await requireStudent();
 
   const offers = await prisma.tutorOffer.findMany({
     where: { userId: user.id },

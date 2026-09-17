@@ -6,6 +6,7 @@ import { prisma } from "@/lib/db";
 import { LIMITS } from "@/lib/limits";
 import { goalsOfUser } from "@/lib/limits-db";
 import { atNoon } from "@/lib/planning";
+import { studentOrDeny } from "@/lib/school-api";
 
 const schema = z.object({
   title: z
@@ -23,6 +24,9 @@ const schema = z.object({
 
 export async function POST(request: Request) {
   return withUser(async (user) => {
+    const { deny } = studentOrDeny(user);
+    if (deny) return deny;
+
     const parsed = schema.safeParse(await request.json());
     if (!parsed.success) return fromZodError(parsed.error);
 

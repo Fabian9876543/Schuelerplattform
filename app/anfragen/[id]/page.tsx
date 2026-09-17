@@ -7,7 +7,7 @@ import { RatingForm } from "@/app/anfragen/[id]/rating-form";
 import { StatusBadge } from "@/app/anfragen/status-badge";
 import { Stars } from "@/components/stars";
 import { Card, PageTitle } from "@/components/ui";
-import { requireUser } from "@/lib/auth";
+import { requireStudent } from "@/lib/auth";
 import { formatDate } from "@/lib/format";
 import {
   canPropose,
@@ -27,7 +27,7 @@ const GESPERRT: Record<string, string> = {
 };
 
 export default async function ThreadPage({ params }: { params: Promise<{ id: string }> }) {
-  const user = await requireUser();
+  const user = await requireStudent();
   const { id } = await params;
 
   // loadThread gibt fuer Unbeteiligte dasselbe zurueck wie fuer eine

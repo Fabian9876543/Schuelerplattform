@@ -3,7 +3,7 @@ import Link from "next/link";
 import { Card, EmptyState, LinkButton, PageTitle } from "@/components/ui";
 import { formatAppointment } from "@/lib/appointments";
 import { appointmentsInRange } from "@/lib/appointments-db";
-import { requireUser } from "@/lib/auth";
+import { requireStudent } from "@/lib/auth";
 import {
   buildMonthGrid,
   dayKey,
@@ -58,7 +58,7 @@ export default async function CalendarPage({
 }: {
   searchParams: Promise<{ monat?: string; tag?: string }>;
 }) {
-  const user = await requireUser();
+  const user = await requireStudent();
   const params = await searchParams;
 
   const heute = new Date();

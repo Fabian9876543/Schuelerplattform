@@ -5,13 +5,13 @@ import { StartAssessment } from "@/app/lernplan/[id]/start-assessment";
 import { StudyPlan } from "@/app/lernplan/[id]/study-plan";
 import { TopicMastery } from "@/app/lernplan/[id]/topic-mastery";
 import { Card, EmptyState, LinkButton, PageTitle, SeverityBadge } from "@/components/ui";
-import { requireUser } from "@/lib/auth";
+import { requireStudent } from "@/lib/auth";
 import { prisma } from "@/lib/db";
 import { describeCountdown, formatDate } from "@/lib/format";
 import { daysBetween, progressPercent, type Mastery } from "@/lib/planning";
 
 export default async function GoalPage({ params }: { params: Promise<{ id: string }> }) {
-  const user = await requireUser();
+  const user = await requireStudent();
   const { id } = await params;
 
   const goal = await prisma.learningGoal.findUnique({

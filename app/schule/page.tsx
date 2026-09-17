@@ -7,6 +7,7 @@ import {
 import { Card, PageTitle } from "@/components/ui";
 import { requireAdmin } from "@/lib/auth";
 import { formatDate } from "@/lib/format";
+import { describeGrade } from "@/lib/school";
 import { schoolOverview } from "@/lib/school-db";
 
 /**
@@ -42,8 +43,14 @@ export default async function SchoolPage() {
           <Zahl wert={termine} was="feste Termine" />
         </div>
         <p className="mt-4 text-sm text-slate-600">
-          Beitrittscode: <code className="rounded bg-slate-100 px-1.5 py-0.5">{school.joinCode}</code>{" "}
-          &ndash; wer ihn hat, kann sich in eurem Bereich anmelden.
+          Beitrittscode fuer Schueler:{" "}
+          <code className="rounded bg-slate-100 px-1.5 py-0.5">{school.joinCode}</code>
+        </p>
+        <p className="mt-1 text-sm text-slate-600">
+          Beitrittscode fuer Lehrkraefte:{" "}
+          <code className="rounded bg-slate-100 px-1.5 py-0.5">{school.teacherJoinCode}</code>{" "}
+          &ndash; damit entsteht ein Konto ohne Klassenstufe, das an der Nachhilfe nicht
+          teilnimmt. Gib ihn nur im Kollegium weiter.
         </p>
         <p className="mt-2 text-sm text-slate-500">
           Diese Seite zeigt keine Nachrichten, keine Bewertungen und keine Selbsttests. Verwalten
@@ -80,7 +87,7 @@ export default async function SchoolPage() {
                       <h3 className="font-medium text-slate-900">
                         {offer.user.name}
                         <span className="ml-2 text-sm font-normal text-slate-500">
-                          Klasse {offer.user.gradeLevel}
+                          {describeGrade(offer.user)}
                         </span>
                       </h3>
                       <span className="rounded-full bg-slate-100 px-2.5 py-0.5 text-xs text-slate-700">
@@ -155,14 +162,14 @@ export default async function SchoolPage() {
                 <div>
                   <p className="font-medium text-slate-900">
                     {member.name}
-                    {member.role === "admin" ? (
+                    {member.isAdmin ? (
                       <span className="ml-2 rounded-full bg-brand-100 px-2 py-0.5 text-xs font-medium text-brand-700">
                         Verwaltung
                       </span>
                     ) : null}
                   </p>
                   <p className="text-sm text-slate-500">
-                    Klasse {member.gradeLevel} &middot; {member.email} &middot; dabei seit{" "}
+                    {describeGrade(member)} &middot; {member.email} &middot; dabei seit{" "}
                     {formatDate(member.createdAt)}
                     {member._count.tutorOffers > 0
                       ? ` · ${member._count.tutorOffers} ${member._count.tutorOffers === 1 ? "Angebot" : "Angebote"}`
@@ -172,7 +179,7 @@ export default async function SchoolPage() {
 
                 <MemberRole
                   userId={member.id}
-                  role={member.role}
+                  isAdmin={member.isAdmin}
                   name={member.name}
                   self={member.id === user.id}
                 />

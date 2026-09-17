@@ -1,6 +1,7 @@
 import { fail, ok, withUser } from "@/lib/api";
 import { getCoach } from "@/lib/ai";
 import { prisma } from "@/lib/db";
+import { studentOrDeny } from "@/lib/school-api";
 import { LIMITS } from "@/lib/limits";
 import { assessmentsToday } from "@/lib/limits-db";
 import { serializeOptions } from "@/lib/questions";
@@ -12,6 +13,9 @@ import { serializeOptions } from "@/lib/questions";
  */
 export async function POST(_request: Request, context: { params: Promise<{ id: string }> }) {
   return withUser(async (user) => {
+    const { deny, student } = studentOrDeny(user);
+    if (deny) return deny;
+
     const { id } = await context.params;
 
     const goal = await prisma.learningGoal.findUnique({
@@ -41,7 +45,7 @@ export async function POST(_request: Request, context: { params: Promise<{ id: s
     const coach = getCoach();
     const quiz = await coach.generateQuiz({
       subject: goal.subject,
-      gradeLevel: user.gradeLevel,
+      gradeLevel: student.gradeLevel,
       examDate: goal.examDate,
       topics: goal.topics.map((topic) => ({ id: topic.id, name: topic.name })),
     });
