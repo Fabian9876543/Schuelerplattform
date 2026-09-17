@@ -9,6 +9,7 @@ import { daysBetween, progressPercent, type Mastery } from "@/lib/planning";
 import { hasSubscription } from "@/lib/push-db";
 import { publicKey } from "@/lib/push-send";
 import { takesPartInTutoring } from "@/lib/school";
+import { activeDays, currentStreak, describeStreak, doneThisWeek } from "@/lib/streak";
 
 /** Ampelfarbe zum Fortschritt - die drei Stufen aus dem Entwurf. */
 function ampel(prozent: number): { punkt: string; text: string } {
@@ -27,7 +28,7 @@ export default async function HomePage() {
     return <TeacherHome user={user} abonniert={await hasSubscription(user.id)} />;
   }
 
-  const [goals, openRequests, abonniert] = await Promise.all([
+  const [goals, openRequests, abonniert, erledigt] = await Promise.all([
     prisma.learningGoal.findMany({
       where: { userId: user.id },
       orderBy: { examDate: "asc" },
@@ -43,9 +44,21 @@ export default async function HomePage() {
       where: { status: "open", tutorOffer: { userId: user.id } },
     }),
     hasSubscription(user.id),
+    // Alle Zeitpunkte des Nutzers - daraus entstehen Serie und Wochenbilanz.
+    prisma.studyTask.findMany({
+      where: {
+        done: true,
+        doneAt: { not: null },
+        evaluation: { assessment: { learningGoal: { userId: user.id } } },
+      },
+      select: { doneAt: true },
+    }),
   ]);
 
   const today = new Date();
+  const zeitpunkte = erledigt.map((eintrag) => eintrag.doneAt!);
+  const serie = describeStreak(currentStreak(activeDays(zeitpunkte), today));
+  const diesenWoche = doneThisWeek(zeitpunkte, today);
 
   return (
     <div>
@@ -53,6 +66,23 @@ export default async function HomePage() {
         title={`Hallo ${user.name}`}
         subtitle="Deine anstehenden Klausuren und was noch zu tun ist."
       />
+
+      {serie || diesenWoche > 0 ? (
+        // Erscheint erst, wenn es etwas zu zeigen gibt. Eine Karte, die
+        // "0 Tage in Folge" meldet, ist keine Ermutigung, sondern ein Vorwurf.
+        <div className="mb-6 flex flex-wrap items-center gap-x-6 gap-y-1 rounded-lg border border-slate-200 bg-white px-4 py-3">
+          {serie ? (
+            <span className="font-medium text-slate-800">
+              <span aria-hidden="true">&#128293;</span> {serie}
+            </span>
+          ) : null}
+          {diesenWoche > 0 ? (
+            <span className="text-sm text-slate-600">
+              Diese Woche {diesenWoche} {diesenWoche === 1 ? "Aufgabe" : "Aufgaben"} geschafft
+            </span>
+          ) : null}
+        </div>
+      ) : null}
 
       {openRequests > 0 ? (
         <div className="mb-6 rounded-lg border border-brand-200 bg-brand-50 px-4 py-3 text-sm text-brand-700">

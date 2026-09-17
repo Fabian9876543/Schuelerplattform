@@ -324,6 +324,9 @@ model StudyTask {
   description      String
   estimatedMinutes Int
   done             Boolean  @default(false)
+  /// Wann abgehakt wurde. Ohne diesen Zeitpunkt liesse sich weder eine Serie
+  /// noch eine Wochenbilanz rechnen - "erledigt" allein kennt kein Datum.
+  doneAt           DateTime?
   /// Entfaellt, weil das Thema inzwischen sitzt. Bleibt erhalten statt
   /// geloescht zu werden - wackelt das Thema wieder, lebt die Aufgabe auf.
   skipped          Boolean  @default(false)

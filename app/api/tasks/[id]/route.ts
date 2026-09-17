@@ -21,7 +21,13 @@ export async function PATCH(request: Request, context: { params: Promise<{ id: s
       return fail("Aufgabe nicht gefunden.", 404);
     }
 
-    await prisma.studyTask.update({ where: { id }, data: { done: parsed.data.done } });
+    // Der Zeitpunkt macht die Serie und die Wochenbilanz erst moeglich. Beim
+    // Zuruecknehmen wird er geloescht - sonst zaehlte ein versehentliches
+    // Haekchen dauerhaft mit.
+    await prisma.studyTask.update({
+      where: { id },
+      data: { done: parsed.data.done, doneAt: parsed.data.done ? new Date() : null },
+    });
     return ok({ id, done: parsed.data.done });
   });
 }
